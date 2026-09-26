@@ -53,6 +53,13 @@ NETS_14 = ["email-Eu-core", "CollegeMsg", "wiki-Vote", "wiki-RfA", "soc-sign-bit
 TAIL_RATIO_THRESHOLD = 100    # max/p99 degree ratio above this = "degree-tail outlier"
 RECIPROCITY_THRESHOLD = 0.75  # reciprocity above this = "reciprocity ceiling"
 
+# Hand-picked, maximally-distinct qualitative palette for per-network colouring
+# (e.g. fig3's 13-network Jacobi-iterate panel) -- a sampled colormap like tab20
+# is built from adjacent similar-hue pairs (two blues, two oranges, ...), which
+# is exactly wrong for a line plot where every curve must read apart at a glance.
+NET_PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#e34948", "#8f5fe0", "#eda100", "#e87ba4",
+               "#4a3aa7", "#0fa3b1", "#a3572b", "#c9b3f2", "#5c8001", "#d6336c", "#495057"]
+
 
 def lab(m):
     return STYLE[m][2] if m in STYLE else LABEL.get(m, m)
@@ -101,18 +108,23 @@ def fig2(results, figs, ds):
         files = sorted(glob.glob(os.path.join(results, "measures_*.csv")))[:4]
     if not files:
         return print("  skip fig2: no measures_*.csv")
-    fig, axes = plt.subplots(1, len(files), figsize=(3.0 * len(files), 2.8), squeeze=False)
+    fig, axes = plt.subplots(1, len(files), figsize=(3.0 * len(files) + 0.5, 2.8), squeeze=False)
+    hb = None
     for ax, f in zip(axes[0], files):
         net = os.path.basename(f)[9:-4]
         d = pd.read_csv(f)
-        ax.hexbin(d["netdegree_norm"], d["trophic_level"], gridsize=40, bins="log", cmap="Blues", mincnt=1,
-                  linewidths=0)
+        hb = ax.hexbin(d["netdegree_norm"], d["trophic_level"], gridsize=40, bins="log", cmap="Blues", mincnt=1,
+                        linewidths=0)
         F0 = ds.loc[ds.net == net, "F0"].iloc[-1] if ds is not None and (ds.net == net).any() else np.nan
         r = evaluate.spearman(d["netdegree_norm"], -d["trophic_level"])
         ax.set_title(f"{net}\nF0 = {F0:.2f}, Spearman = {r:.2f}")
         ax.set_xlabel("Normalized netdegree ρ")
         ax.grid(False)
     axes[0][0].set_ylabel("Trophic level h (0 = source)")
+    fig.tight_layout(rect=(0, 0, 0.94, 1))
+    if hb is not None:
+        cax = fig.add_axes((0.955, 0.16, 0.012, 0.68))
+        fig.colorbar(hb, cax=cax, label="Nodes per bin (log)")
     save(fig, figs, "fig2_netdegree_vs_trophic")
 
 
@@ -176,13 +188,11 @@ def fig3(results, figs):
     if len(jac):
         jac["t"] = jac.measure.str.split("_").str[1].astype(int)
         nets = list(dict.fromkeys(jac.net))
-        cmap = plt.get_cmap("tab20")
-        net_colors = [cmap(i / max(len(nets) - 1, 1)) for i in range(len(nets))]
         markers = ["o", "s", "^", "D", "v", "P", "X", "*", "h", "8", "<", ">", "p", "d"]
         for i, net in enumerate(nets):
             grp = jac[jac.net == net].drop_duplicates("t", keep="last").sort_values("t")
-            a2.plot(grp.t, grp.spearman_vs_trophic, marker=markers[i % len(markers)], ms=4,
-                    color=net_colors[i], label=net)
+            a2.plot(grp.t, grp.spearman_vs_trophic, marker=markers[i % len(markers)], ms=4.5,
+                    color=NET_PALETTE[i % len(NET_PALETTE)], label=net)
         a2.legend(fontsize=6.3, loc="center left", bbox_to_anchor=(1.01, 0.5), ncol=1, frameon=False)
         a2.set_xscale("log")
         a2.set_xticks([1, 2, 5, 10], ["1", "2", "5", "10"])
@@ -198,6 +208,13 @@ def fig4(results, figs, tau, setting="IC p=1pc"):
     if not len(d):
         return print(f"  skip fig4: no rows for {setting}")
     piv = d.pivot_table(index="measure", columns="net", values="tau")
+    # A measure only computed on a minority of networks (e.g. netdegree_2hop_reach,
+    # restricted to smaller graphs) leaves a heatmap row that's mostly blank cells --
+    # visual noise, not signal. Drop rows present on fewer than half the networks.
+    sparse = piv.index[piv.notna().sum(axis=1) < 0.5 * piv.shape[1]]
+    if len(sparse):
+        print(f"  fig4: dropping sparse rows {list(sparse)}")
+    piv = piv.drop(index=sparse)
     piv = piv.loc[piv.mean(axis=1).sort_values(ascending=False).index]
     from matplotlib.colors import LinearSegmentedColormap
     cmap = LinearSegmentedColormap.from_list("div", ["#e34948", "#f0efec", "#2a78d6"])
@@ -421,7 +438,8 @@ def fig9_capstone(results, figs, data_dir="data"):
             vals = [ratios.loc[n, m] if n in ratios.index and pd.notna(ratios.loc[n, m]) else 0
                     for n in grp_nets]
             offset = (i - (len(measures_of_interest) - 1) / 2) * bar_h
-            bars = ax.barh(y + offset, vals, height=bar_h * 0.92, color=col(m))
+            bars = ax.barh(y + offset, vals, height=bar_h * 0.92, color=col(m),
+                            edgecolor="white", linewidth=0.4)
             if ax is axes[0]:
                 handles.append(bars[0])
                 labels.append(lab(m))
