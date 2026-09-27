@@ -22,12 +22,14 @@ from ndbench import evaluate  # noqa: E402
 
 # Fixed method -> colour/marker mapping (colour follows the method, never its rank).
 # The spring_rank_* family shares a violet hue (distinct from trophic's orange and
-# netdegree's blue) so the three regularized-trophic variants read as one family in
+# net-degree's blue) so the three regularized-trophic variants read as one family in
 # every figure, while remaining distinguishable from each other by shade + marker.
+# Dict keys below are the benchmark's own column names (ndbench.measures.py) and must
+# not change; only the third tuple element / LABEL values are rendered display text.
 STYLE = {
-    "netdegree":               ("#2a78d6", "o", "Netdegree"),
+    "netdegree":               ("#2a78d6", "o", "Net-degree"),
     "trophic":                 ("#eb6834", "s", "Trophic source (−h), unregularized"),
-    "netdegree_2hop":          ("#1baf7a", "^", "2-hop netdegree"),
+    "netdegree_2hop":          ("#1baf7a", "^", "2-hop net-degree"),
     "out_degree":              ("#eda100", "D", "Out-degree"),
     "pagerank_rev":            ("#e87ba4", "v", "PageRank (reversed)"),
     "leaderrank":              ("#008300", "P", "LeaderRank"),
@@ -39,8 +41,8 @@ STYLE = {
     "spring_rank_maxdeg":      ("#4a1e9e", "8", "SpringRank (α = max degree)"),
 }
 GRAY = "#8a8985"
-LABEL = {"netdegree_norm": "Normalized netdegree", "netdegree_weighted": "Weighted netdegree",
-         "netdegree_2hop_reach": "2-hop netdegree (reach)", "in_degree": "In-degree", "kshell": "k-shell",
+LABEL = {"netdegree_norm": "Normalized net-degree", "netdegree_weighted": "Weighted net-degree",
+         "netdegree_2hop_reach": "2-hop net-degree (reach)", "in_degree": "In-degree", "kshell": "k-shell",
          "betweenness": "Betweenness", "random": "Random", "jacobi_1": "Jacobi t=1", "jacobi_2": "Jacobi t=2",
          "jacobi_5": "Jacobi t=5", "jacobi_10": "Jacobi t=10"}
 
@@ -118,7 +120,7 @@ def fig2(results, figs, ds):
         F0 = ds.loc[ds.net == net, "F0"].iloc[-1] if ds is not None and (ds.net == net).any() else np.nan
         r = evaluate.spearman(d["netdegree_norm"], -d["trophic_level"])
         ax.set_title(f"{net}\nF0 = {F0:.2f}, Spearman = {r:.2f}")
-        ax.set_xlabel("Normalized netdegree ρ")
+        ax.set_xlabel("Normalized net-degree ρ")
         ax.grid(False)
     axes[0][0].set_ylabel("Trophic level h (0 = source)")
     fig.tight_layout(rect=(0, 0, 0.94, 1))
@@ -196,7 +198,7 @@ def fig3(results, figs):
         a2.legend(fontsize=6.3, loc="center left", bbox_to_anchor=(1.01, 0.5), ncol=1, frameon=False)
         a2.set_xscale("log")
         a2.set_xticks([1, 2, 5, 10], ["1", "2", "5", "10"])
-    a2.set_xlabel("Jacobi iterations t (t = 1 is normalized netdegree)")
+    a2.set_xlabel("Jacobi iterations t (t = 1 is normalized net-degree)")
     a2.set_ylabel("Spearman with converged −h")
     a2.set_title("From local to global")
     fig.tight_layout()
