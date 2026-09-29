@@ -39,6 +39,13 @@ STYLE = {
     "spring_rank_p99":         ("#c9b3f2", "p", "SpringRank (α = p99 degree)"),
     "spring_rank_tailadaptive": ("#8f5fe0", "H", "SpringRank (α = √(p99·max))"),
     "spring_rank_maxdeg":      ("#4a1e9e", "8", "SpringRank (α = max degree)"),
+    # Added so fig5's top-N selection never silently collapses distinct baselines
+    # onto the same fallback gray+"." style (betweenness, k-shell and 2-hop
+    # net-degree reach previously rendered indistinguishably in fig5).
+    "betweenness":             ("#a3572b", "<", "Betweenness"),
+    "kshell":                  ("#0fa3b1", ">", "k-shell"),
+    "netdegree_2hop_reach":    ("#d6336c", "d", "2-hop net-degree (reach)"),
+    "in_degree":               ("#495057", "1", "In-degree"),
 }
 GRAY = "#8a8985"
 LABEL = {"netdegree_norm": "Normalized net-degree", "netdegree_weighted": "Weighted net-degree",
@@ -460,6 +467,73 @@ def fig9_capstone(results, figs, data_dir="data"):
     save(fig, figs, "fig9_capstone_regularization_fix")
 
 
+def fig10_runtime(results, figs):
+    """Wall-clock time vs. network scale (edge count) for a representative subset of
+    methods, log-log. The paper repeatedly asserts net-degree is O(n+m) with no
+    iteration; this is the only figure that actually shows the wall-clock consequence
+    of that claim next to the global/iterative measures it's contrasted with."""
+    rt = read(results, "runtime.csv")
+    if rt is None:
+        return
+    show = ["netdegree", "out_degree", "in_degree", "trophic", "spring_rank_maxdeg",
+             "pagerank_rev", "kshell", "betweenness", "celf"]
+    fig, ax = plt.subplots(figsize=(6.2, 4.2))
+    for m in show:
+        d = rt[rt.method == m].sort_values("m")
+        if not len(d):
+            continue
+        ax.plot(d.m, d.seconds, marker=mk(m), color=col(m), label=lab(m), ms=5)
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel("Network size, edges m")
+    ax.set_ylabel("Wall-clock time (s)")
+    ax.set_title("Runtime vs. network scale")
+    ax.legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.01, 1.02), frameon=False)
+    fig.tight_layout()
+    save(fig, figs, "fig10_runtime")
+
+
+def fig11_risk_classification(figs, data_dir="data"):
+    """Degree-tail ratio vs. reciprocity for all 14 real networks, with the two
+    threshold lines used throughout the paper (Section 12) drawn explicitly and
+    every network colored by which failure mode, if any, it falls into. Currently
+    this classification is described only in prose (Table 2 groupings, Section 12's
+    text); this is the only figure that shows the two checkable risk factors and
+    their thresholds directly."""
+    tail = _degree_tail_stats(data_dir)
+    if not tail:
+        return print("  skip fig11: no networks loaded")
+    cat_color = {"degree-tail outlier": "#e34948", "reciprocity ceiling": "#4a1e9e", "normal": "#2a78d6"}
+
+    def category(s):
+        if s["reciprocity"] > RECIPROCITY_THRESHOLD:
+            return "reciprocity ceiling"
+        if s["ratio"] > TAIL_RATIO_THRESHOLD:
+            return "degree-tail outlier"
+        return "normal"
+
+    fig, ax = plt.subplots(figsize=(6.6, 4.4))
+    nets = list(tail.keys())
+    xs = [tail[n]["ratio"] for n in nets]
+    ys = [tail[n]["reciprocity"] for n in nets]
+    cats = [category(tail[n]) for n in nets]
+    ax.scatter(xs, ys, color=[cat_color[c] for c in cats], s=55, zorder=3,
+               edgecolor="white", linewidth=1.2)
+    ax.set_xscale("log")
+    ax.margins(x=0.25, y=0.12)
+    _place_labels(ax, xs, ys, nets)
+    ax.axvline(TAIL_RATIO_THRESHOLD, color="#8a8985", lw=0.8, ls=":")
+    ax.axhline(RECIPROCITY_THRESHOLD, color="#8a8985", lw=0.8, ls=":")
+    ax.set_xlabel("Degree-tail ratio (max / p99 total degree)")
+    ax.set_ylabel("Reciprocity")
+    ax.set_title("Network risk-factor classification")
+    handles = [plt.Line2D([0], [0], marker="o", color="w", markerfacecolor=c, markersize=8, label=k)
+               for k, c in cat_color.items()]
+    ax.legend(handles=handles, fontsize=7.5, loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
+    fig.tight_layout()
+    save(fig, figs, "fig11_risk_classification")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--results", default="results")
@@ -479,6 +553,8 @@ def main():
     fig6(args.results, args.figs)
     fig9_capstone(args.results, args.figs, args.data_dir)
     fig8(args.results, args.figs)
+    fig10_runtime(args.results, args.figs)
+    fig11_risk_classification(args.figs, args.data_dir)
 
 
 if __name__ == "__main__":
