@@ -13,3 +13,6 @@ __pycache__/
 # OS / editor cruft
 .DS_Store
 *.swp
+
+# Local manuscript docx copy (authoritative copy is the Claude Doc, not this repo)
+netdegree_bench/
