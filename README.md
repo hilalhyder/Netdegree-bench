@@ -59,14 +59,17 @@ python make_figures.py --results results --figs figures
 | File | Contents | Research question |
 |---|---|---|
 | `datasets.csv` | n, m, reciprocity, p_c, trophic incoherence F0, flip, arc meaning | Table 1 |
-| `runtime.csv` | Wall-clock seconds per measure and heuristic | Table 2 |
+| `runtime.csv` | Wall-clock seconds per measure and heuristic | Table 2, Fig. 10 |
 | `measures_<net>.csv` | Every score and the trophic level for every node | Fig. 2 |
 | `agreement.csv` | Spearman of each local measure with the converged trophic ranking, plus F0 | RQ1, RQ2, Fig. 3 |
 | `groundtruth_<net>.csv` | Simulated single-node spreading ability per setting | RQ3 |
 | `tau.csv` | Kendall τ_b and imprecision ε(1%, 5%, 10%) per measure × setting | RQ3, Figs. 4, 5, 7 |
-| `spread.csv` | Seed-set spread with bootstrap 95% CI, and redundancy, for k = 10, 25, 50, 100 | RQ4, Fig. 6 |
+| `spread.csv` | Seed-set spread with bootstrap 95% CI, and redundancy, for k = 10, 25, 50, 100 | RQ4, Figs. 6, 9 |
 | `stats_summary.csv` | Friedman test, Nemenyi CD, Wilcoxon netdegree vs out-degree (Holm) | Fig. 7 |
 | `higgs_*.csv` | Direction check, metrics, deciles, precision@k curve, temporal reach | RQ5, Fig. 8 |
+| `figures/fig9_*` | Spread ratio to the best method (k = 100, IC p = p_c) for trophic, the SpringRank regularizations and netdegree, grouped by failure mode | Fig. 9 |
+| `figures/fig10_*` | Runtime vs. edge count (log-log) for a subset of measures and heuristics | Fig. 10 |
+| `figures/fig11_*` | Degree-tail ratio (max / p99 total degree) vs. reciprocity, with both thresholds; needs `data/` | Fig. 11 |
 
 ## Settings used (defaults)
 
@@ -97,7 +100,7 @@ ndbench/synthetic.py   trophic-coherence-tunable generator; Higgs-like fixture f
 run_benchmark.py       RQ2-RQ4
 run_agreement_sweep.py RQ1-RQ2 synthetic sweep
 run_higgs.py           RQ5
-make_figures.py        figures 2-8 and stats_summary.csv
+make_figures.py        figures 2-11 and stats_summary.csv
 tests/test_core.py     correctness checks
 ```
 

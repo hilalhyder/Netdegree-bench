@@ -137,38 +137,60 @@ def fig2(results, figs, ds):
     save(fig, figs, "fig2_netdegree_vs_trophic")
 
 
-def _place_labels(ax, xs, ys, texts, fontsize=7, color="#52514e"):
+def _place_labels(ax, xs, ys, texts, fontsize=7, color="#52514e", pinned=None):
     """Greedy, render-aware label placement: try a fixed ring of offsets per
     point (near first, then farther / other side) and keep the first one whose
     actual rendered bounding box doesn't collide with an already-placed label.
     Handles both point clusters and long labels overlapping distant points --
     plain fixed-offset annotate can't, since it only reasons about point
-    positions, not label extents."""
+    positions, not label extents. Every data point is also an obstacle and a
+    label must stay inside the axes; if no candidate is clean, the one with the
+    fewest collisions wins, label-on-label weighted 10x label-on-point (nearest
+    first on ties), never a fixed far offset
+    that can strand a label next to the wrong point. `pinned` maps a label to a
+    hand-chosen (dx, dy) offset in points for clusters too tight for the search;
+    pinned labels are placed first and are obstacles for the rest."""
     xs, ys, texts = list(xs), list(ys), list(texts)
     fig = ax.figure
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
+    from matplotlib.transforms import Bbox
+    import matplotlib.text as mtext
+    r = 4.5 * fig.dpi / 72  # half-size of a point's keep-out box (4.5 pt), in pixels
+    pts = ax.transData.transform(np.column_stack([xs, ys]))
+    point_boxes = [Bbox.from_extents(px - r, py - r, px + r, py + r) for px, py in pts]
+    axes_box = ax.get_window_extent(renderer=renderer)
     placed = []
-    candidates = [(6, 3), (6, -11), (-6, 3), (-6, -11), (6, 15), (6, -22), (-6, 15), (-6, -22),
-                  (11, 26), (11, -34), (-11, 26), (-11, -34)]
-    for idx in np.argsort(xs):
+    candidates = [(6, 0), (-6, 0), (6, 9), (6, -9), (-6, 9), (-6, -9), (0, 11), (0, -11),
+                  (8, 18), (8, -18), (-8, 18), (-8, -18), (12, 28), (12, -28), (-12, 28), (-12, -28)]
+    pinned = pinned or {}
+    order = sorted(range(len(xs)), key=lambda i: (texts[i] not in pinned, xs[i]))
+    for idx in order:
         x, y, text = xs[idx], ys[idx], texts[idx]
-        chosen = False
-        for dx, dy in candidates:
-            ha = "left" if dx >= 0 else "right"
+        best = None
+        for dx, dy in ([pinned[text]] if text in pinned else candidates):
+            ha = "left" if dx > 0 else "right" if dx < 0 else "center"
             t = ax.annotate(text, (x, y), xytext=(dx, dy), textcoords="offset points",
                              fontsize=fontsize, color=color, ha=ha, va="center",
                              arrowprops=dict(arrowstyle="-", color="#d8d7d2", lw=0.6, shrinkA=0, shrinkB=2))
             fig.canvas.draw()
-            bbox = t.get_window_extent(renderer=renderer).expanded(1.08, 1.3)
-            if not any(bbox.overlaps(b) for b in placed):
-                placed.append(bbox)
-                chosen = True
-                break
+            # Text.get_window_extent, not Annotation's: the latter includes the leader
+            # line, which always reaches back over the point and its near neighbours
+            bbox = mtext.Text.get_window_extent(t, renderer=renderer).expanded(1.08, 1.3)
+            others = [b for j, b in enumerate(point_boxes) if j != idx]
+            hits = 10 * sum(bbox.overlaps(b) for b in placed) + sum(bbox.overlaps(b) for b in others)
+            if not (axes_box.contains(bbox.x0, bbox.y0) and axes_box.contains(bbox.x1, bbox.y1)):
+                hits += 100
             t.remove()
-        if not chosen:
-            ax.annotate(text, (x, y), xytext=candidates[-1], textcoords="offset points",
-                        fontsize=fontsize, color=color, ha="left", va="center")
+            if best is None or hits < best[0] or text in pinned:
+                best = (hits, dx, dy, ha, bbox)
+            if hits == 0:
+                break
+        _, dx, dy, ha, bbox = best
+        ax.annotate(text, (x, y), xytext=(dx, dy), textcoords="offset points",
+                    fontsize=fontsize, color=color, ha=ha, va="center",
+                    arrowprops=dict(arrowstyle="-", color="#d8d7d2", lw=0.6, shrinkA=0, shrinkB=2))
+        placed.append(bbox)
 
 
 def fig3(results, figs):
@@ -185,7 +207,6 @@ def fig3(results, figs):
     real = ag[(ag.source == "real") & (ag.measure == "netdegree_norm")].drop_duplicates("net", keep="last")
     a1.scatter(real.F0, real.spearman_vs_trophic, color=STYLE["netdegree"][0], s=36, zorder=3,
                edgecolor="white", linewidth=1.5, label="Real networks")
-    _place_labels(a1, real.F0.to_numpy(), real.spearman_vs_trophic.to_numpy(), real.net.to_numpy())
     a1.set_xlabel("Trophic incoherence F0")
     a1.set_ylabel("Spearman(ρ, −h)")
     a1.set_title("Local–global agreement vs coherence")
@@ -209,6 +230,12 @@ def fig3(results, figs):
     a2.set_ylabel("Spearman with converged −h")
     a2.set_title("From local to global")
     fig.tight_layout()
+    # after layout: placement works in pixels, so the axes must not move afterwards
+    # the top-right cluster is too tight for the greedy search to keep every
+    # label beside its own point, so those offsets are pinned by hand
+    _place_labels(a1, real.F0.to_numpy(), real.spearman_vs_trophic.to_numpy(), real.net.to_numpy(),
+                  pinned={"CollegeMsg": (6, 0), "soc-Pokec": (6, -9), "email-Eu-core": (-6, 0),
+                          "wiki-Vote": (6, 7), "cit-HepPh": (0, -12)})
     save(fig, figs, "fig3_agreement_vs_F0")
 
 
@@ -521,7 +548,6 @@ def fig11_risk_classification(figs, data_dir="data"):
                edgecolor="white", linewidth=1.2)
     ax.set_xscale("log")
     ax.margins(x=0.25, y=0.12)
-    _place_labels(ax, xs, ys, nets)
     ax.axvline(TAIL_RATIO_THRESHOLD, color="#8a8985", lw=0.8, ls=":")
     ax.axhline(RECIPROCITY_THRESHOLD, color="#8a8985", lw=0.8, ls=":")
     ax.set_xlabel("Degree-tail ratio (max / p99 total degree)")
@@ -531,6 +557,7 @@ def fig11_risk_classification(figs, data_dir="data"):
                for k, c in cat_color.items()]
     ax.legend(handles=handles, fontsize=7.5, loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
     fig.tight_layout()
+    _place_labels(ax, xs, ys, nets)
     save(fig, figs, "fig11_risk_classification")
 
 
