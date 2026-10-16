@@ -102,6 +102,10 @@ large part of the network. On a laptop, expect minutes for networks under 10k no
 for the largest ones. The simulators use every CPU core. Use `--quick` for a smoke test, and
 lower `--runs-*` or `--sample` if needed.
 
+For reference, on a 12-core laptop with 16 GB RAM the full runs took about 1 h for wiki-Talk
+and 2 h for soc-Pokec, under 7 min for every other network. soc-Pokec needs most of the
+memory, so close other programs before running it.
+
 ## Layout
 
 ```
