@@ -3,7 +3,8 @@
 
   python make_figures.py --results results --figs figures
 
-Writes fig2 ... fig8 (PNG, 300 dpi, plus PDF) and stats_summary.csv.
+Writes fig1 ... fig10 (PNG, 300 dpi, plus PDF), numbered in order of first
+citation in the manuscript, and stats_summary.csv.
 Figures whose input CSV is missing are skipped with a note.
 """
 import argparse
@@ -287,7 +288,7 @@ def fig5(results, figs, tau):
     save(fig, figs, "fig5_tau_vs_p")
 
 
-def fig6(results, figs):
+def fig8_spread(results, figs):
     sp = read(results, "spread.csv")
     if sp is None:
         return
@@ -316,10 +317,10 @@ def fig6(results, figs):
         ax.set_xlabel("Seed budget k")
     axes[0][0].set_ylabel("Expected spread (IC, p = p_c)")
     axes[0][-1].legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.0, 1.0))
-    save(fig, figs, "fig6_spread_vs_k")
+    save(fig, figs, "fig8_spread_vs_k")
 
 
-def fig7_and_stats(results, figs, tau):
+def fig6_and_stats(results, figs, tau):
     rows = []
     for setting, d in tau.groupby("setting"):
         piv = d.pivot_table(index="net", columns="measure", values="tau").dropna(axis=1)
@@ -347,7 +348,7 @@ def fig7_and_stats(results, figs, tau):
             ax.set_xlabel(f"Average rank across {piv.shape[0]} networks (lower = better)\n"
                           f"Shaded band: within the Nemenyi critical difference ({cd:.2f}) of the best")
             ax.set_title(f"Critical difference, Kendall τ, {setting}  (Friedman p = {fp:.2g})")
-            save(fig, figs, "fig7_critical_difference")
+            save(fig, figs, "fig6_critical_difference")
     if rows:
         out = pd.DataFrame(rows)
         w = out.test == "wilcoxon_netdegree_vs_outdegree"
@@ -357,7 +358,7 @@ def fig7_and_stats(results, figs, tau):
         print("  wrote stats_summary.csv")
 
 
-def fig8(results, figs):
+def fig9_higgs(results, figs):
     dec = read(results, "higgs_deciles.csv")
     cur = read(results, "higgs_precision_curve.csv")
     if dec is None:
@@ -386,7 +387,7 @@ def fig8(results, figs):
         a2.set_ylabel("Precision for top-1% retweeted")
         a2.set_title("Recovering the most-retweeted users")
     fig.tight_layout()
-    save(fig, figs, "fig8_higgs")
+    save(fig, figs, "fig9_higgs")
 
 
 def _degree_tail_stats(data_dir):
@@ -401,7 +402,7 @@ def _degree_tail_stats(data_dir):
         try:
             g = dsmod.load_wiki_rfa(data_dir) if name == "wiki-RfA" else dsmod.load(name, data_dir=data_dir)
         except Exception as e:
-            print(f"  fig9: could not load {name} ({e}), skipping its tail stats")
+            print(f"  tail stats: could not load {name} ({e}), skipping its tail stats")
             continue
         u = g.out_degree().astype(float) + g.in_degree().astype(float)
         active = u > 0
@@ -411,7 +412,7 @@ def _degree_tail_stats(data_dir):
     return stats
 
 
-def fig9_capstone(results, figs, data_dir="data"):
+def fig7_capstone(results, figs, data_dir="data"):
     """The regularization-fix story in one figure: seed-set spread ratio-to-best-method
     (k=100, IC p=1pc) for trophic/p99/tailadaptive/maxdeg/netdegree across every real
     network this study covers, grouped by the two known failure modes from
@@ -422,7 +423,7 @@ def fig9_capstone(results, figs, data_dir="data"):
     d = sp[(sp.setting == "IC p=1pc") & (sp.k == 100)]
     nets = [n for n in NETS_14 if n in set(d.net)]
     if not nets:
-        return print("  skip fig9: no k=100/IC p=1pc rows for the 14-network suite")
+        return print("  skip fig7: no k=100/IC p=1pc rows for the 14-network suite")
     measures_of_interest = ["trophic", "spring_rank_p99", "spring_rank_tailadaptive",
                              "spring_rank_maxdeg", "netdegree"]
     rows = []
@@ -436,7 +437,7 @@ def fig9_capstone(results, figs, data_dir="data"):
             if m in best_per_method.index:
                 rows.append(dict(net=net, measure=m, ratio=best_per_method[m] / best))
     if not rows:
-        return print("  skip fig9: no measures matched")
+        return print("  skip fig7: no measures matched")
     ratios = pd.DataFrame(rows).pivot(index="net", columns="measure", values="ratio")
 
     tail = _degree_tail_stats(data_dir)
@@ -491,7 +492,7 @@ def fig9_capstone(results, figs, data_dir="data"):
     fig.suptitle("The regularization fix, all 14 real networks", fontsize=12, y=0.985)
     fig.legend(handles, labels, loc="upper center", ncol=3, fontsize=8,
                bbox_to_anchor=(0.58, 0.935), frameon=False)
-    save(fig, figs, "fig9_capstone_regularization_fix")
+    save(fig, figs, "fig7_capstone_regularization_fix")
 
 
 def fig10_runtime(results, figs):
@@ -520,7 +521,7 @@ def fig10_runtime(results, figs):
     save(fig, figs, "fig10_runtime")
 
 
-def fig11_risk_classification(figs, data_dir="data"):
+def fig1_risk_classification(figs, data_dir="data"):
     """Degree-tail ratio vs. reciprocity for all 14 real networks, with the two
     threshold lines used throughout the paper (Section 12) drawn explicitly and
     every network colored by which failure mode, if any, it falls into. Currently
@@ -529,7 +530,7 @@ def fig11_risk_classification(figs, data_dir="data"):
     their thresholds directly."""
     tail = _degree_tail_stats(data_dir)
     if not tail:
-        return print("  skip fig11: no networks loaded")
+        return print("  skip fig1: no networks loaded")
     cat_color = {"degree-tail outlier": "#e34948", "reciprocity ceiling": "#4a1e9e", "normal": "#2a78d6"}
 
     def category(s):
@@ -558,7 +559,7 @@ def fig11_risk_classification(figs, data_dir="data"):
     ax.legend(handles=handles, fontsize=7.5, loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
     fig.tight_layout()
     _place_labels(ax, xs, ys, nets)
-    save(fig, figs, "fig11_risk_classification")
+    save(fig, figs, "fig1_risk_classification")
 
 
 def main():
@@ -571,17 +572,17 @@ def main():
     setup()
     ds = read(args.results, "datasets.csv")
     tau = read(args.results, "tau.csv")
+    fig1_risk_classification(args.figs, args.data_dir)
     fig2(args.results, args.figs, ds)
     fig3(args.results, args.figs)
     if tau is not None:
         fig4(args.results, args.figs, tau)
         fig5(args.results, args.figs, tau)
-        fig7_and_stats(args.results, args.figs, tau)
-    fig6(args.results, args.figs)
-    fig9_capstone(args.results, args.figs, args.data_dir)
-    fig8(args.results, args.figs)
+        fig6_and_stats(args.results, args.figs, tau)
+    fig7_capstone(args.results, args.figs, args.data_dir)
+    fig8_spread(args.results, args.figs)
+    fig9_higgs(args.results, args.figs)
     fig10_runtime(args.results, args.figs)
-    fig11_risk_classification(args.figs, args.data_dir)
 
 
 if __name__ == "__main__":

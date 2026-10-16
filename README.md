@@ -56,20 +56,32 @@ python make_figures.py --results results --figs figures
 
 ## What each output answers
 
-| File | Contents | Research question |
+| File | Contents | Manuscript |
 |---|---|---|
-| `datasets.csv` | n, m, reciprocity, p_c, trophic incoherence F0, flip, arc meaning | Table 1 |
-| `runtime.csv` | Wall-clock seconds per measure and heuristic | Table 2, Fig. 10 |
-| `measures_<net>.csv` | Every score and the trophic level for every node | Fig. 2 |
+| `datasets.csv` | n, m, reciprocity, p_c, trophic incoherence F0, flip, arc meaning | Section 6 |
+| `runtime.csv` | Wall-clock seconds per measure and heuristic | Section 13, Fig. 10 |
+| `measures_<net>.csv` | Every score and the trophic level for every node | RQ2, Fig. 2 |
 | `agreement.csv` | Spearman of each local measure with the converged trophic ranking, plus F0 | RQ1, RQ2, Fig. 3 |
 | `groundtruth_<net>.csv` | Simulated single-node spreading ability per setting | RQ3 |
-| `tau.csv` | Kendall τ_b and imprecision ε(1%, 5%, 10%) per measure × setting | RQ3, Figs. 4, 5, 7 |
-| `spread.csv` | Seed-set spread with bootstrap 95% CI, and redundancy, for k = 10, 25, 50, 100 | RQ4, Figs. 6, 9 |
-| `stats_summary.csv` | Friedman test, Nemenyi CD, Wilcoxon netdegree vs out-degree (Holm) | Fig. 7 |
-| `higgs_*.csv` | Direction check, metrics, deciles, precision@k curve, temporal reach | RQ5, Fig. 8 |
-| `figures/fig9_*` | Spread ratio to the best method (k = 100, IC p = p_c) for trophic, the SpringRank regularizations and netdegree, grouped by failure mode | Fig. 9 |
-| `figures/fig10_*` | Runtime vs. edge count (log-log) for a subset of measures and heuristics | Fig. 10 |
-| `figures/fig11_*` | Degree-tail ratio (max / p99 total degree) vs. reciprocity, with both thresholds; needs `data/` | Fig. 11 |
+| `tau.csv` | Kendall τ_b and imprecision ε(1%, 5%, 10%) per measure × setting | RQ3, Table 1, Figs. 4-6 |
+| `stats_summary.csv` | Friedman test, Nemenyi CD, Wilcoxon netdegree vs out-degree (Holm) | RQ3, Fig. 6 |
+| `spread.csv` | Seed-set spread with bootstrap 95% CI, and redundancy, for k = 10, 25, 50, 100 | RQ4, Table 2, Figs. 7, 8 |
+| `higgs_*.csv` | Direction check, metrics, deciles, precision@k curve, temporal reach | RQ5, Fig. 9 |
+
+Figures are numbered in order of first citation in the manuscript (Elsevier/Springer convention):
+
+| Figure | File | Contents | First cited |
+|---|---|---|---|
+| 1 | `fig1_risk_classification` | Degree-tail ratio (max / p99 total degree) vs. reciprocity, with both thresholds; needs `data/` | Section 5 |
+| 2 | `fig2_netdegree_vs_trophic` | Normalized net-degree vs. trophic level, four networks | Section 7 |
+| 3 | `fig3_agreement_vs_F0` | Agreement vs. F0, and vs. Jacobi depth | Section 7 |
+| 4 | `fig4_tau_heatmap` | Kendall τ, every measure × network, IC at p_c | Section 8 |
+| 5 | `fig5_tau_vs_p` | τ robustness to transmission probability | Section 8 |
+| 6 | `fig6_critical_difference` | Friedman-Nemenyi critical-difference diagram | Section 8 |
+| 7 | `fig7_capstone_regularization_fix` | Spread ratio to the best method (k = 100, IC p = p_c), grouped by failure mode; needs `data/` | Section 9 |
+| 8 | `fig8_spread_vs_k` | Seed-set spread vs. budget k | Section 9 |
+| 9 | `fig9_higgs` | Higgs deciles and precision@k | Section 10 |
+| 10 | `fig10_runtime` | Runtime vs. edge count (log-log) | Section 13 |
 
 ## Settings used (defaults)
 
@@ -100,7 +112,7 @@ ndbench/synthetic.py   trophic-coherence-tunable generator; Higgs-like fixture f
 run_benchmark.py       RQ2-RQ4
 run_agreement_sweep.py RQ1-RQ2 synthetic sweep
 run_higgs.py           RQ5
-make_figures.py        figures 2-11 and stats_summary.csv
+make_figures.py        figures 1-10 and stats_summary.csv
 tests/test_core.py     correctness checks
 ```
 
