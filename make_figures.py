@@ -309,6 +309,11 @@ def fig5(results, figs, tau):
     d = tau[(tau.model == "IC") & tau.p_over_pc.notna()]
     if not len(d):
         return print("  skip fig5")
+    # Average only over networks evaluated at every p/p_c: quick-mode networks have IC at
+    # p_c only, and mixing them into the p_c point alone fakes a dip there.
+    n_levels = d.p_over_pc.nunique()
+    complete = d.groupby("net").p_over_pc.nunique()
+    d = d[d.net.isin(complete[complete == n_levels].index)]
     mean = d.groupby(["measure", "p_over_pc"]).tau.mean().unstack()
     top = mean.mean(axis=1).sort_values(ascending=False).index[:6]
     top = list(top) + [m for m in ("netdegree", "out_degree") if m not in top]
@@ -316,7 +321,7 @@ def fig5(results, figs, tau):
     for m in top:
         ax.plot(mean.columns, mean.loc[m], marker=mk(m), color=col(m), label=lab(m))
     ax.set_xlabel(r"Transmission probability $p\,/\,p_\mathrm{c}$")
-    ax.set_ylabel("Mean Kendall τ across networks")
+    ax.set_ylabel(f"Mean Kendall τ ({d.net.nunique()} networks)")
     ax.set_xticks(list(mean.columns))
     ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0))
     save(fig, figs, "fig5_tau_vs_p")
