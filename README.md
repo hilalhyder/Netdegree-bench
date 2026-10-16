@@ -68,7 +68,10 @@ python make_figures.py --results results --figs figures
 | `spread.csv` | Seed-set spread with bootstrap 95% CI, and redundancy, for k = 10, 25, 50, 100 | RQ4, Table 2, Figs. 7, 8 |
 | `higgs_*.csv` | Direction check, metrics, deciles, precision@k curve, temporal reach | RQ5, Fig. 9 |
 
-Figures are numbered in order of first citation in the manuscript (Elsevier/Springer convention):
+Figures are numbered in order of first citation in the manuscript and drawn to Elsevier's
+artwork specifications: final printed width (140 mm = 1.5 columns, 190 mm = full width),
+embedded Arial at 7-8 pt, no in-figure titles (titles go in the captions), (a)/(b) part labels.
+Submit the PDFs (vector); the PNGs (600 dpi) are for Word drafts and previews.
 
 | Figure | File | Contents | First cited |
 |---|---|---|---|

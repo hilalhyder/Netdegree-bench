@@ -3,8 +3,9 @@
 
   python make_figures.py --results results --figs figures
 
-Writes fig1 ... fig10 (PNG, 300 dpi, plus PDF), numbered in order of first
-citation in the manuscript, and stats_summary.csv.
+Writes fig1 ... fig10 (vector PDF for submission, plus 600-dpi PNG), numbered in
+order of first citation in the manuscript and drawn to Elsevier artwork specs
+(90/140/190 mm wide, embedded Arial >= 7 pt, no in-figure titles, (a)/(b) parts), and stats_summary.csv.
 Figures whose input CSV is missing are skipped with a note.
 """
 import argparse
@@ -83,18 +84,48 @@ def mk(m):
     return STYLE[m][1] if m in STYLE else "."
 
 
+# Elsevier artwork sizes (https://www.elsevier.com/about/policies-and-standards/author/artwork-and-media-instructions):
+# figures are drawn at their final printed width so every font size below is the
+# printed size, and saved without tight-bbox cropping so the page is exactly that width.
+MM = 1 / 25.4
+SINGLE_COL = 90 * MM     # 1 column
+ONE_HALF_COL = 140 * MM  # 1.5 columns
+DOUBLE_COL = 190 * MM    # full page width
+
+
 def setup():
     plt.rcParams.update({
-        "figure.dpi": 110, "savefig.dpi": 300, "font.size": 9, "axes.titlesize": 10,
+        # Elsevier: Arial/Helvetica/Times/Courier/Symbol, embedded, >= 7 pt at final size;
+        # combination (line + tone) raster artwork >= 500 dpi
+        "font.family": "Arial", "font.size": 8, "axes.titlesize": 8, "axes.labelsize": 8,
+        "xtick.labelsize": 7, "ytick.labelsize": 7, "legend.fontsize": 7,
+        "mathtext.fontset": "custom", "mathtext.rm": "Arial", "mathtext.it": "Arial:italic",
+        "mathtext.bf": "Arial:bold",
+        "pdf.fonttype": 42, "ps.fonttype": 42,  # TrueType, not Type 3, so fonts embed cleanly
+        "figure.dpi": 150, "savefig.dpi": 600,
         "axes.spines.top": False, "axes.spines.right": False, "axes.edgecolor": "#52514e",
         "axes.labelcolor": "#0b0b0b", "xtick.color": "#52514e", "ytick.color": "#52514e",
-        "axes.grid": True, "grid.color": "#e6e5e0", "grid.linewidth": 0.6, "lines.linewidth": 1.6,
-        "legend.frameon": False, "font.family": "DejaVu Sans"})
+        "axes.linewidth": 0.6, "xtick.major.width": 0.6, "ytick.major.width": 0.6,
+        "axes.grid": True, "grid.color": "#e6e5e0", "grid.linewidth": 0.5, "lines.linewidth": 1.2,
+        "lines.markersize": 3.5, "legend.frameon": False, "figure.constrained_layout.use": True})
+
+
+def panel(ax, letter, text=None):
+    """Elsevier-style part label: bold (a), (b), ... at the top left, optionally
+    followed by a short plain-text subtitle; figure titles belong in the caption."""
+    ax.set_title(rf"$\mathbf{{({letter})}}$" + (f" {text}" if text else ""), loc="left")
+
+
+def freeze_layout(fig):
+    """Run constrained layout once, then pin it, for figures that place annotations
+    in pixel space afterwards (a later layout pass would move the axes under them)."""
+    fig.canvas.draw()
+    fig.set_layout_engine("none")
 
 
 def save(fig, figs, name):
     for ext in ("png", "pdf"):
-        fig.savefig(os.path.join(figs, f"{name}.{ext}"), bbox_inches="tight")
+        fig.savefig(os.path.join(figs, f"{name}.{ext}"))
     plt.close(fig)
     print("  wrote", name)
 
@@ -118,23 +149,27 @@ def fig2(results, figs, ds):
         files = sorted(glob.glob(os.path.join(results, "measures_*.csv")))[:4]
     if not files:
         return print("  skip fig2: no measures_*.csv")
-    fig, axes = plt.subplots(1, len(files), figsize=(3.0 * len(files) + 0.5, 2.8), squeeze=False)
+    ncols = 2 if len(files) > 1 else 1
+    nrows = -(-len(files) // ncols)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(ONE_HALF_COL, 2.15 * nrows + 0.2), squeeze=False)
     hb = None
-    for ax, f in zip(axes[0], files):
+    for i, (ax, f) in enumerate(zip(axes.flat, files)):
         net = os.path.basename(f)[9:-4]
         d = pd.read_csv(f)
         hb = ax.hexbin(d["netdegree_norm"], d["trophic_level"], gridsize=40, bins="log", cmap="Blues", mincnt=1,
                         linewidths=0)
         F0 = ds.loc[ds.net == net, "F0"].iloc[-1] if ds is not None and (ds.net == net).any() else np.nan
         r = evaluate.spearman(d["netdegree_norm"], -d["trophic_level"])
-        ax.set_title(f"{net}\nF0 = {F0:.2f}, Spearman = {r:.2f}")
-        ax.set_xlabel("Normalized net-degree ρ")
+        panel(ax, "abcdefgh"[i], f"{net}  (F0 = {F0:.2f}, Spearman = {r:.2f})")
+        if i // ncols == nrows - 1:
+            ax.set_xlabel("Normalized net-degree ρ")
+        if i % ncols == 0:
+            ax.set_ylabel("Trophic level h (0 = source)")
         ax.grid(False)
-    axes[0][0].set_ylabel("Trophic level h (0 = source)")
-    fig.tight_layout(rect=(0, 0, 0.94, 1))
+    for ax in list(axes.flat)[len(files):]:
+        ax.set_visible(False)
     if hb is not None:
-        cax = fig.add_axes((0.955, 0.16, 0.012, 0.68))
-        fig.colorbar(hb, cax=cax, label="Nodes per bin (log)")
+        fig.colorbar(hb, ax=axes.ravel().tolist(), label="Nodes per bin (log)", shrink=0.8, aspect=30)
     save(fig, figs, "fig2_netdegree_vs_trophic")
 
 
@@ -198,7 +233,7 @@ def fig3(results, figs):
     ag = read(results, "agreement.csv")
     if ag is None:
         return
-    fig, (a1, a2) = plt.subplots(1, 2, figsize=(8.4, 3.4))
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(DOUBLE_COL, 3.6))
     syn = ag[(ag.source == "synthetic sweep") & (ag.measure == "netdegree_norm")]
     if len(syn):
         gsyn = syn.groupby("T").agg(F0=("F0", "mean"), r=("spearman_vs_trophic", "mean"),
@@ -206,13 +241,13 @@ def fig3(results, figs):
         a1.plot(gsyn.F0, gsyn.r, color=GRAY, lw=1.6, label="Synthetic sweep (mean ± sd)")
         a1.fill_between(gsyn.F0, gsyn.r - gsyn.sd.fillna(0), gsyn.r + gsyn.sd.fillna(0), color=GRAY, alpha=0.2, lw=0)
     real = ag[(ag.source == "real") & (ag.measure == "netdegree_norm")].drop_duplicates("net", keep="last")
-    a1.scatter(real.F0, real.spearman_vs_trophic, color=STYLE["netdegree"][0], s=36, zorder=3,
-               edgecolor="white", linewidth=1.5, label="Real networks")
+    a1.scatter(real.F0, real.spearman_vs_trophic, color=STYLE["netdegree"][0], s=22, zorder=3,
+               edgecolor="white", linewidth=1.0, label="Real networks")
     a1.set_xlabel("Trophic incoherence F0")
     a1.set_ylabel("Spearman(ρ, −h)")
-    a1.set_title("Local–global agreement vs coherence")
+    panel(a1, "a")
     a1.margins(x=0.12)
-    a1.legend(loc="lower right", fontsize=7, frameon=True, framealpha=0.9,
+    a1.legend(loc="lower right", frameon=True, framealpha=0.9,
               edgecolor="#e6e5e0", facecolor="white")
     src = ag[ag.source != "synthetic sweep"]
     jac = src[src.measure.str.startswith("jacobi_")].copy()
@@ -222,16 +257,16 @@ def fig3(results, figs):
         markers = ["o", "s", "^", "D", "v", "P", "X", "*", "h", "8", "<", ">", "p", "d"]
         for i, net in enumerate(nets):
             grp = jac[jac.net == net].drop_duplicates("t", keep="last").sort_values("t")
-            a2.plot(grp.t, grp.spearman_vs_trophic, marker=markers[i % len(markers)], ms=4.5,
+            a2.plot(grp.t, grp.spearman_vs_trophic, marker=markers[i % len(markers)],
                     color=NET_PALETTE[i % len(NET_PALETTE)], label=net)
-        a2.legend(fontsize=6.3, loc="center left", bbox_to_anchor=(1.01, 0.5), ncol=1, frameon=False)
+        fig.legend(*a2.get_legend_handles_labels(), loc="outside lower center", ncol=5,
+                   columnspacing=1.2, handlelength=2.2)
         a2.set_xscale("log")
         a2.set_xticks([1, 2, 5, 10], ["1", "2", "5", "10"])
     a2.set_xlabel("Jacobi iterations t (t = 1 is normalized net-degree)")
     a2.set_ylabel("Spearman with converged −h")
-    a2.set_title("From local to global")
-    fig.tight_layout()
-    # after layout: placement works in pixels, so the axes must not move afterwards
+    panel(a2, "b")
+    freeze_layout(fig)
     # the top-right cluster is too tight for the greedy search to keep every
     # label beside its own point, so those offsets are pinned by hand
     _place_labels(a1, real.F0.to_numpy(), real.spearman_vs_trophic.to_numpy(), real.net.to_numpy(),
@@ -255,7 +290,7 @@ def fig4(results, figs, tau, setting="IC p=1pc"):
     piv = piv.loc[piv.mean(axis=1).sort_values(ascending=False).index]
     from matplotlib.colors import LinearSegmentedColormap
     cmap = LinearSegmentedColormap.from_list("div", ["#e34948", "#f0efec", "#2a78d6"])
-    fig, ax = plt.subplots(figsize=(1.0 + 0.9 * piv.shape[1], 0.32 * piv.shape[0] + 1.2))
+    fig, ax = plt.subplots(figsize=(DOUBLE_COL, 0.2 * piv.shape[0] + 1.3))
     im = ax.imshow(piv.values, cmap=cmap, vmin=-1, vmax=1, aspect="auto")
     ax.set_xticks(range(piv.shape[1]), piv.columns, rotation=40, ha="right")
     ax.set_yticks(range(piv.shape[0]), [lab(m) for m in piv.index])
@@ -266,8 +301,7 @@ def fig4(results, figs, tau, setting="IC p=1pc"):
                 ax.text(j, i, f"{v:.2f}", ha="center", va="center", fontsize=7,
                         color="white" if abs(v) > 0.6 else "#0b0b0b")
     ax.grid(False)
-    fig.colorbar(im, ax=ax, fraction=0.04, label="Kendall τ with simulated spreading")
-    ax.set_title(f"Single-node spreading, {setting}")
+    fig.colorbar(im, ax=ax, fraction=0.03, pad=0.01, label="Kendall τ with simulated spreading")
     save(fig, figs, "fig4_tau_heatmap")
 
 
@@ -278,13 +312,13 @@ def fig5(results, figs, tau):
     mean = d.groupby(["measure", "p_over_pc"]).tau.mean().unstack()
     top = mean.mean(axis=1).sort_values(ascending=False).index[:6]
     top = list(top) + [m for m in ("netdegree", "out_degree") if m not in top]
-    fig, ax = plt.subplots(figsize=(4.2, 3.0))
+    fig, ax = plt.subplots(figsize=(ONE_HALF_COL, 2.6))
     for m in top:
-        ax.plot(mean.columns, mean.loc[m], marker=mk(m), color=col(m), label=lab(m), ms=5)
-    ax.set_xlabel("Transmission probability p / p_c")
+        ax.plot(mean.columns, mean.loc[m], marker=mk(m), color=col(m), label=lab(m))
+    ax.set_xlabel(r"Transmission probability $p\,/\,p_\mathrm{c}$")
     ax.set_ylabel("Mean Kendall τ across networks")
-    ax.set_title("Robustness to transmission probability (IC)")
-    ax.legend(fontsize=7, loc="best")
+    ax.set_xticks(list(mean.columns))
+    ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0))
     save(fig, figs, "fig5_tau_vs_p")
 
 
@@ -299,8 +333,10 @@ def fig8_spread(results, figs):
     nets = [n for n in curated if n in set(sp.net)] or list(dict.fromkeys(sp.net))[:4]
     keep = ["netdegree", "trophic", "spring_rank_p99", "spring_rank_tailadaptive", "spring_rank_maxdeg",
             "out_degree", "pagerank_rev", "leaderrank", "voterank", "degree_discount", "celf"]
-    fig, axes = plt.subplots(1, len(nets), figsize=(3.1 * len(nets), 2.9), squeeze=False)
-    for ax, net in zip(axes[0], nets):
+    ncols = 2 if len(nets) > 1 else 1
+    nrows = -(-len(nets) // ncols)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(DOUBLE_COL, 2.3 * nrows + 0.1), squeeze=False)
+    for i, (ax, net) in enumerate(zip(axes.flat, nets)):
         d = sp[sp.net == net]
         for m in keep:
             dm = d[d.method == m]
@@ -310,13 +346,17 @@ def fig8_spread(results, figs):
             kmax = dm.k.max()
             v = dm[dm.k == kmax].sort_values("spread").variant.iloc[-1]
             dm = dm[dm.variant == v].sort_values("k")
-            ax.plot(dm.k, dm.spread, marker=mk(m), ms=4, color=col(m), label=lab(m),
+            ax.plot(dm.k, dm.spread, marker=mk(m), color=col(m), label=lab(m),
                     ls="--" if m == "celf" else "-")
             ax.fill_between(dm.k, dm.ci_low, dm.ci_high, color=col(m), alpha=0.15, lw=0)
-        ax.set_title(net)
-        ax.set_xlabel("Seed budget k")
-    axes[0][0].set_ylabel("Expected spread (IC, p = p_c)")
-    axes[0][-1].legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.0, 1.0))
+        panel(ax, "abcdefgh"[i], net)
+        if i // ncols == nrows - 1:
+            ax.set_xlabel("Seed budget k")
+        if i % ncols == 0:
+            ax.set_ylabel(r"Expected spread (IC, $p = p_\mathrm{c}$)")
+    for ax in list(axes.flat)[len(nets):]:
+        ax.set_visible(False)
+    fig.legend(*axes.flat[0].get_legend_handles_labels(), loc="outside right upper")
     save(fig, figs, "fig8_spread_vs_k")
 
 
@@ -337,17 +377,16 @@ def fig6_and_stats(results, figs, tau):
                              value=float(w.statistic), p=float(w.pvalue), n_nets=piv.shape[0]))
         if setting == "IC p=1pc":
             order = np.argsort(avg)
-            fig, ax = plt.subplots(figsize=(6.5, 0.28 * len(avg) + 1.0))
+            fig, ax = plt.subplots(figsize=(ONE_HALF_COL, 0.17 * len(avg) + 0.7))
             names = [lab(piv.columns[i]) for i in order]
             ax.hlines(range(len(avg)), 1, avg[order], color="#e6e5e0", lw=1)
-            ax.scatter(avg[order], range(len(avg)), c=[col(piv.columns[i]) for i in order], s=30, zorder=3)
+            ax.scatter(avg[order], range(len(avg)), c=[col(piv.columns[i]) for i in order], s=16, zorder=3)
             ax.set_yticks(range(len(avg)), names)
             ax.invert_yaxis()
             best = avg[order][0]
             ax.axvspan(best, best + cd, color="#2a78d6", alpha=0.10, lw=0)
-            ax.set_xlabel(f"Average rank across {piv.shape[0]} networks (lower = better)\n"
-                          f"Shaded band: within the Nemenyi critical difference ({cd:.2f}) of the best")
-            ax.set_title(f"Critical difference, Kendall τ, {setting}  (Friedman p = {fp:.2g})")
+            # band meaning, CD value and Friedman p go in the caption (Elsevier: no in-figure titles)
+            ax.set_xlabel(f"Average rank by Kendall τ across {piv.shape[0]} networks (lower = better)")
             save(fig, figs, "fig6_critical_difference")
     if rows:
         out = pd.DataFrame(rows)
@@ -363,18 +402,17 @@ def fig9_higgs(results, figs):
     cur = read(results, "higgs_precision_curve.csv")
     if dec is None:
         return
-    fig, axes = plt.subplots(1, 2 if cur is not None else 1, figsize=(7.4, 3.0), squeeze=False)
+    fig, axes = plt.subplots(1, 2 if cur is not None else 1, figsize=(DOUBLE_COL, 3.1), squeeze=False)
     a1 = axes[0][0]
     d = dec[dec.split == "all activity"]
     for m in ["netdegree", "trophic", "spring_rank_p99", "spring_rank_maxdeg", "out_degree", "pagerank_rev"]:
         dm = d[d.measure == m].sort_values("decile")
         if len(dm):
-            a1.plot(dm.decile, dm.mean_y, marker=mk(m), color=col(m), label=lab(m), ms=4)
+            a1.plot(dm.decile, dm.mean_y, marker=mk(m), color=col(m), label=lab(m))
     a1.set_yscale("symlog", linthresh=0.1)
     a1.set_xlabel("Score decile (10 = highest)")
     a1.set_ylabel("Mean distinct retweeters")
-    a1.set_title("Higgs: retweeters by score decile")
-    a1.legend(fontsize=6.5)
+    panel(a1, "a")
     if cur is not None:
         a2 = axes[0][1]
         for m in ["netdegree", "trophic", "spring_rank_p99", "spring_rank_maxdeg", "out_degree", "netdegree_2hop"]:
@@ -382,11 +420,15 @@ def fig9_higgs(results, figs):
             if len(c):
                 a2.plot(c.k, c.precision, color=col(m), label=lab(m))
         a2.set_xscale("log")
-        a2.legend(fontsize=7)
         a2.set_xlabel("k (top-k users by score)")
         a2.set_ylabel("Precision for top-1% retweeted")
-        a2.set_title("Recovering the most-retweeted users")
-    fig.tight_layout()
+        panel(a2, "b")
+    # one legend for both panels (same colour per measure): no corner of (b) is free of curves
+    legend = {}
+    for ax in axes[0]:
+        for h, label in zip(*ax.get_legend_handles_labels()):
+            legend.setdefault(label, h)
+    fig.legend(legend.values(), legend.keys(), loc="outside lower center", ncol=4)
     save(fig, figs, "fig9_higgs")
 
 
@@ -464,8 +506,8 @@ def fig7_capstone(results, figs, data_dir="data"):
     heights = [max(len(v), 1) for v in groups.values()]
 
     measures_of_interest = [m for m in measures_of_interest if m in ratios.columns]
-    fig, axes = plt.subplots(len(groups), 1, figsize=(7.6, 0.40 * sum(heights) + 1.4 * len(groups)),
-                              gridspec_kw={"height_ratios": heights}, squeeze=False)
+    fig, axes = plt.subplots(len(groups), 1, figsize=(ONE_HALF_COL, 0.3 * sum(heights) + 0.4 * len(groups) + 0.8),
+                              gridspec_kw={"height_ratios": heights}, sharex=True, squeeze=False)
     axes = axes[:, 0]
     bar_h = 0.8 / len(measures_of_interest)
     handles, labels = [], []
@@ -476,22 +518,21 @@ def fig7_capstone(results, figs, data_dir="data"):
                     for n in grp_nets]
             offset = (i - (len(measures_of_interest) - 1) / 2) * bar_h
             bars = ax.barh(y + offset, vals, height=bar_h * 0.92, color=col(m),
-                            edgecolor="white", linewidth=0.4)
+                            edgecolor="white", linewidth=0.3)
             if ax is axes[0]:
                 handles.append(bars[0])
                 labels.append(lab(m))
         ax.axvline(1.0, color="#8a8985", lw=0.8, ls=":", zorder=0)
-        ax.set_yticks(y, grp_nets, fontsize=8)
+        ax.set_yticks(y, grp_nets)
         ax.set_xlim(0, 1.12)
+        if ax is not axes[-1]:
+            ax.tick_params(labelbottom=False)
         ax.invert_yaxis()
-        ax.set_title(title, loc="left", fontsize=9.5, fontweight="bold", color="#0b0b0b", pad=6)
-        ax.grid(axis="x", color="#e6e5e0", linewidth=0.6)
+        ax.set_title(title, loc="left", fontweight="bold", color="#0b0b0b")
+        ax.grid(axis="x", color="#e6e5e0", linewidth=0.5)
         ax.grid(axis="y", visible=False)
-    axes[-1].set_xlabel("Seed-set spread, ratio to the best method (k = 100, IC, p = p_c)")
-    fig.subplots_adjust(left=0.20, right=0.97, bottom=0.05, top=0.86, hspace=0.55)
-    fig.suptitle("The regularization fix, all 14 real networks", fontsize=12, y=0.985)
-    fig.legend(handles, labels, loc="upper center", ncol=3, fontsize=8,
-               bbox_to_anchor=(0.58, 0.935), frameon=False)
+    axes[-1].set_xlabel(r"Seed-set spread, ratio to the best method ($k$ = 100, IC, $p = p_\mathrm{c}$)")
+    fig.legend(handles, labels, loc="outside upper center", ncol=3)
     save(fig, figs, "fig7_capstone_regularization_fix")
 
 
@@ -505,19 +546,17 @@ def fig10_runtime(results, figs):
         return
     show = ["netdegree", "out_degree", "in_degree", "trophic", "spring_rank_maxdeg",
              "pagerank_rev", "kshell", "betweenness", "celf"]
-    fig, ax = plt.subplots(figsize=(6.2, 4.2))
+    fig, ax = plt.subplots(figsize=(ONE_HALF_COL, 3.2))
     for m in show:
         d = rt[rt.method == m].sort_values("m")
         if not len(d):
             continue
-        ax.plot(d.m, d.seconds, marker=mk(m), color=col(m), label=lab(m), ms=5)
+        ax.plot(d.m, d.seconds, marker=mk(m), color=col(m), label=lab(m))
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel("Network size, edges m")
     ax.set_ylabel("Wall-clock time (s)")
-    ax.set_title("Runtime vs. network scale")
-    ax.legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.01, 1.02), frameon=False)
-    fig.tight_layout()
+    ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0))
     save(fig, figs, "fig10_runtime")
 
 
@@ -540,24 +579,23 @@ def fig1_risk_classification(figs, data_dir="data"):
             return "degree-tail outlier"
         return "normal"
 
-    fig, ax = plt.subplots(figsize=(6.6, 4.4))
+    fig, ax = plt.subplots(figsize=(ONE_HALF_COL, 3.4))
     nets = list(tail.keys())
     xs = [tail[n]["ratio"] for n in nets]
     ys = [tail[n]["reciprocity"] for n in nets]
     cats = [category(tail[n]) for n in nets]
-    ax.scatter(xs, ys, color=[cat_color[c] for c in cats], s=55, zorder=3,
-               edgecolor="white", linewidth=1.2)
+    ax.scatter(xs, ys, color=[cat_color[c] for c in cats], s=28, zorder=3,
+               edgecolor="white", linewidth=0.8)
     ax.set_xscale("log")
     ax.margins(x=0.25, y=0.12)
     ax.axvline(TAIL_RATIO_THRESHOLD, color="#8a8985", lw=0.8, ls=":")
     ax.axhline(RECIPROCITY_THRESHOLD, color="#8a8985", lw=0.8, ls=":")
     ax.set_xlabel("Degree-tail ratio (max / p99 total degree)")
     ax.set_ylabel("Reciprocity")
-    ax.set_title("Network risk-factor classification")
-    handles = [plt.Line2D([0], [0], marker="o", color="w", markerfacecolor=c, markersize=8, label=k)
+    handles = [plt.Line2D([0], [0], marker="o", color="w", markerfacecolor=c, markersize=6, label=k)
                for k, c in cat_color.items()]
-    ax.legend(handles=handles, fontsize=7.5, loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
-    fig.tight_layout()
+    ax.legend(handles=handles, loc="upper left", bbox_to_anchor=(1.02, 1.0))
+    freeze_layout(fig)
     _place_labels(ax, xs, ys, nets)
     save(fig, figs, "fig1_risk_classification")
 
