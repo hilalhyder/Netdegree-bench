@@ -295,6 +295,48 @@ def test_voterank_and_dd_pick_hub_first():
     assert seeds.degree_discount_ic(g, 3, 0.1)[0] == 0
 
 
+def _two_hop_brute(g):
+    A = g.adjacency().toarray() > 0
+    kout = A.sum(1).astype(float)
+    d1 = A.copy()
+    d2 = (A.astype(int) @ A.astype(int) > 0) & ~d1
+    np.fill_diagonal(d2, False)
+    return kout, d1, d2
+
+
+def test_gravity_and_ci_match_brute_force():
+    g = synthetic.trophic_tunable(n=120, mean_degree=4.0, T=1.0, rng_seed=4)[0]
+    kout, d1, d2 = _two_hop_brute(g)
+    assert np.allclose(seeds.gravity(g), kout * (d1 @ kout + d2 @ kout / 4))
+    ci = np.maximum(kout - 1, 0) * (d2 @ (kout - 1))
+    assert seeds.collective_influence(g, 1)[0] == np.argmax(ci)
+    assert len(set(seeds.collective_influence(g, 10))) == 10
+
+
+def test_imm_finds_disjoint_hubs():
+    # two stars with 30 and 20 leaves plus isolated nodes: at p = 1 IMM must pick both centres
+    src = np.r_[np.zeros(30, int), np.full(20, 31)]
+    dst = np.r_[np.arange(1, 31), np.arange(32, 52)]
+    g = from_edges(src, dst, n=80)
+    from ndbench import imm
+    for model, p in [("IC", 1.0), ("LT", None)]:
+        s, info = imm.imm(g, 2, model, p, eps=0.3)
+        assert set(s) == {0, 31}
+        assert abs(info["est_spread"] - 52) < 6
+
+
+def test_imm_spread_close_to_celf():
+    from ndbench import imm
+    g = synthetic.trophic_tunable(n=400, mean_degree=5.0, T=1.0, rng_seed=2)[0]
+    p = 0.15
+    prm = diffusion.arc_params(g, "uniform", p)
+    s_imm, _ = imm.imm(g, 5, "IC", p, eps=0.3)
+    s_celf = seeds.celf(g, 5, "IC", prm, runs=300)
+    a = diffusion.spread(g, s_imm, "IC", prm, 2000, rng_seed=1).mean()
+    b = diffusion.spread(g, s_celf, "IC", prm, 2000, rng_seed=1).mean()
+    assert a >= 0.95 * b
+
+
 def test_top_k_tiebreak_primary_dominates_secondary():
     # primary score must win regardless of secondary, even when secondary is huge
     scores = np.array([5.0, 5.0, 3.0, 3.0])
@@ -335,6 +377,24 @@ def test_direction_check_detects_follow_file():
     raw = from_edges([1, 2], [0, 0], n=3)  # 'A follows B' rows: 1 follows 0, 2 follows 0
     act = pd.DataFrame(dict(ia=[1, 2], ib=[0, 0], t=[1, 2], kind=["RT", "RT"]))
     assert run_higgs.direction_check(raw, act)["flip"]
+
+
+def test_digg_fan_votes_and_story_reach():
+    import pandas as pd
+    import run_digg
+    # information flows 0 -> 1 -> 2 and 0 -> 3; story 1 voted by 0, 1, 2 in order, 3 never votes;
+    # story 2 voted by 2 before 1, so 1's vote there is not a fan vote of anyone it watches
+    g = from_edges([0, 1, 0], [1, 2, 3], n=4)
+    votes = pd.DataFrame(dict(u=[0, 1, 2, 2, 1], s=[1, 1, 1, 2, 2], t=[10, 20, 30, 5, 6]))
+    cr = run_digg.credited(g, votes)
+    assert sorted(zip(cr.u, cr.v)) == [(0, 1), (1, 2)]
+    assert list(run_digg.distinct_fans(cr, 4)) == [1, 1, 0, 0]
+    order = np.lexsort((cr.u.to_numpy(), cr.s.to_numpy()))
+    keys = (cr.s.to_numpy() * 4 + cr.u.to_numpy())[order]
+    us = votes[["u", "s"]].sort_values(["u", "s"]).to_numpy(np.int64)
+    reach = run_digg._story_reach(keys, cr.v.to_numpy()[order], np.ascontiguousarray(us[:, 0]),
+                                  np.ascontiguousarray(us[:, 1]), np.array([0, 1, 2]), 4)
+    assert list(reach) == [2, 1, 0]
 
 
 def test_friedman_nemenyi_shapes():

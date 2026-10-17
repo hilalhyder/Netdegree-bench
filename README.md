@@ -23,7 +23,7 @@ results. For the Higgs follower graph, the direction is decided from the data it
 ```bash
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python -m pytest -q tests                              # 32 checks, about 10 s after the first numba compile
+python -m pytest -q tests                              # 36 checks, about 10 s after the first numba compile
 ```
 
 ## Run
@@ -48,7 +48,14 @@ python run_higgs.py --out results
 python run_higgs.py --social data/higgs-social_network.edgelist.gz \
                     --activity data/higgs-activity_time.txt.gz --out results
 
-# 4. Figures and statistics
+# 4. Second real-cascade dataset (RQ5): Digg 2009 votes on the friendship graph, from KONECT
+python run_digg.py --out results
+
+# 5. Stronger seed-selection baselines (RQ4): IMM, adaptive Collective Influence, gravity
+python run_extra_baselines.py --datasets main --out results
+python run_extra_baselines.py --datasets heldout --out results_heldout
+
+# 6. Figures and statistics
 python make_figures.py --results results --figs figures
 ```
 
@@ -60,7 +67,7 @@ lists the networks, their predicted failure class and six hypotheses.
 
 ```bash
 python heldout/preregister.py                                    # risk factors from degree data only
-heldoutun_heldout.cmd                                          # Windows; or run_benchmark.py per network
+heldout\run_heldout.cmd                                          # Windows; or run_benchmark.py per network
 python heldout/evaluate.py --results results_heldout             # scores each hypothesis
 ```
 
@@ -81,7 +88,10 @@ python heldout/evaluate.py --results results_heldout             # scores each h
 | `stats_summary.csv` | Friedman test, Nemenyi CD, Wilcoxon netdegree vs out-degree (Holm) | RQ3, Fig. 6 |
 | `seed_ratio.csv`, `seed_tests.csv` | Seed-set spread ratio to the best method (k = 100) for every method; Wilcoxon tests (Holm) of net-degree and SpringRank (α = max degree) against each baseline | RQ4, Table 3 |
 | `spread.csv` | Seed-set spread with bootstrap 95% CI, and redundancy, for k = 10, 25, 50, 100 | RQ4, Table 2, Figs. 7, 8 |
+| `spread_extra.csv`, `imm_info.csv` | Seed-set spread of IMM (model-matched), Collective Influence and gravity, evaluated like `spread.csv`; IMM's RR-set count and lower bound | RQ4, Table 4 |
+| `extra_ratio.csv`, `extra_tests.csv` | Every method's k = 100 spread as a fraction of IMM and of the best method; Wilcoxon tests (Holm) of net-degree and SpringRank (α = max degree) against the three new baselines | RQ4, Table 4 |
 | `higgs_*.csv` | Direction check, metrics, deciles, precision@k curve, temporal reach | RQ5, Fig. 9 |
+| `digg_*.csv` | Direction check, metrics (distinct fans, story cascade reach, time split), deciles | RQ5, Table 5 |
 
 Figures are numbered in order of first citation in the manuscript and drawn to Elsevier's
 artwork specifications: final printed width (140 mm = 1.5 columns, 190 mm = full width),
@@ -127,13 +137,16 @@ memory, so close other programs before running it.
 ndbench/graph.py       DiGraph container, edge-list reader (gz, labels, flip, duplicate merge)
 ndbench/measures.py    netdegree family, trophic levels + Jacobi iterates, baselines
 ndbench/diffusion.py   numba IC / LT / SIR, parallel single-node spreading
-ndbench/seeds.py       top-k, top-k with exclusion, VoteRank, DegreeDiscountIC, CELF
+ndbench/seeds.py       top-k, top-k with exclusion, VoteRank, DegreeDiscountIC, CELF, Collective Influence, gravity
+ndbench/imm.py         IMM (reverse-reachable sets, Chen 2018 sampling fix) for IC and LT
 ndbench/evaluate.py    Kendall, imprecision, bootstrap CI, redundancy, AUC, Friedman-Nemenyi, Holm
 ndbench/datasets.py    SNAP registry with arc meaning and flip flags
 ndbench/synthetic.py   trophic-coherence-tunable generator; Higgs-like fixture for testing
 run_benchmark.py       RQ2-RQ4
 run_agreement_sweep.py RQ1-RQ2 synthetic sweep
-run_higgs.py           RQ5
+run_higgs.py           RQ5 (Higgs)
+run_digg.py            RQ5 (Digg)
+run_extra_baselines.py RQ4 stronger baselines
 make_figures.py        figures 1-10 and stats_summary.csv
 tests/test_core.py     correctness checks
 ```

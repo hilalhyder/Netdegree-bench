@@ -22,3 +22,5 @@ netdegree_bench/
 # Local scratch copies of results (full-mode rerun staging, pre-rerun backup)
 results_full/
 results_quick_backup/
+
+extra_baselines.log

@@ -442,6 +442,48 @@ def seed_stats(results, k=100):
     print("  wrote seed_ratio.csv and seed_tests.csv")
 
 
+EXTRA_BASELINES = ["imm", "collective_influence", "gravity"]
+
+
+def extra_stats(results, k=100):
+    """Seed sets against the stronger baselines of run_extra_baselines.py (IMM, adaptive
+    Collective Influence, gravity). extra_ratio.csv: every method's k = 100 spread as a
+    fraction of model-matched IMM and of the best method including the new baselines.
+    extra_tests.csv: Wilcoxon tests of each SEED_FOCUS measure against each new baseline,
+    Holm-corrected within setting x measure."""
+    sp, ex = read(results, "spread.csv"), read(results, "spread_extra.csv")
+    if sp is None or ex is None:
+        return
+    sp = pd.concat([sp, ex], ignore_index=True)
+    sp = sp[(sp.k == k) & sp.net.isin(ex.net.unique())]
+    ratio_rows, test_rows = [], []
+    for setting, d in sp.groupby("setting"):
+        best = d.groupby(["net", "method"]).spread.max().unstack()
+        to_imm, to_best = best.div(best["imm"], axis=0), best.div(best.max(axis=1), axis=0)
+        long = best.stack().rename("spread").reset_index()
+        long["ratio_to_imm"] = to_imm.stack().values
+        long["ratio_to_best"] = to_best.stack().values
+        ratio_rows.append(long.assign(setting=setting))
+        for a in SEED_FOCUS:
+            for b in EXTRA_BASELINES:
+                diff = (to_best[a] - to_best[b]).dropna()
+                if len(diff) < 5 or not diff.any():
+                    continue
+                test_rows.append(dict(setting=setting, k=k, measure=a, baseline=b, n_nets=len(diff),
+                                      mean_ratio=to_best[a].mean(), mean_ratio_baseline=to_best[b].mean(),
+                                      mean_ratio_to_imm=to_imm[a].mean(), mean_diff=diff.mean(),
+                                      wins=int((diff > 0).sum()), p=float(stats.wilcoxon(diff).pvalue)))
+    pd.concat(ratio_rows).to_csv(os.path.join(results, "extra_ratio.csv"), index=False)
+    if not test_rows:
+        return print("  wrote extra_ratio.csv (too few networks for extra_tests.csv)")
+    out = pd.DataFrame(test_rows)
+    out["p_holm"] = np.nan
+    for (s, a), idx in out.groupby(["setting", "measure"]).groups.items():
+        out.loc[idx, "p_holm"] = evaluate.holm(out.loc[idx, "p"].values)
+    out.to_csv(os.path.join(results, "extra_tests.csv"), index=False)
+    print("  wrote extra_ratio.csv and extra_tests.csv")
+
+
 def fig9_higgs(results, figs):
     dec = read(results, "higgs_deciles.csv")
     cur = read(results, "higgs_precision_curve.csv")
@@ -665,6 +707,7 @@ def main():
     fig7_capstone(args.results, args.figs, args.data_dir)
     fig8_spread(args.results, args.figs)
     seed_stats(args.results)
+    extra_stats(args.results)
     fig9_higgs(args.results, args.figs)
     fig10_runtime(args.results, args.figs)
 

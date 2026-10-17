@@ -132,6 +132,99 @@ def degree_discount_ic(g, k, p):
     return np.array(out, dtype=np.int64)
 
 
+@nb.njit(cache=True, parallel=True)
+def _two_hop_sums(n, indptr, indices, kout, blocks):
+    """For every node i, sums of kout over the nodes at out-distance exactly 1 (s1) and
+    exactly 2 (s2), and the number of nodes at distance 2 (c2)."""
+    s1 = np.zeros(n)
+    s2 = np.zeros(n)
+    c2 = np.zeros(n)
+    for b in nb.prange(blocks):
+        stamp = np.full(n, -1, dtype=np.int64)
+        for i in range(b, n, blocks):
+            stamp[i] = i
+            for kk in range(indptr[i], indptr[i + 1]):
+                j = indices[kk]
+                if stamp[j] != i:
+                    stamp[j] = i
+                    s1[i] += kout[j]
+            for kk in range(indptr[i], indptr[i + 1]):
+                j = indices[kk]
+                for k2 in range(indptr[j], indptr[j + 1]):
+                    l = indices[k2]
+                    if stamp[l] != i:
+                        stamp[l] = i
+                        s2[i] += kout[l]
+                        c2[i] += 1
+    return s1, s2, c2
+
+
+def gravity(g):
+    """Gravity centrality (Ma et al. 2016) truncated at radius R = 2 on out-distances:
+    G(i) = k_out(i) * sum_{d(i,j) <= 2} k_out(j) / d(i,j)^2."""
+    indptr, indices, _ = g.out_csr()
+    kout = g.out_degree().astype(float)
+    s1, s2, _ = _two_hop_sums(g.n, indptr, indices, kout, max(1, nb.get_num_threads()))
+    return kout * (s1 + s2 / 4.0)
+
+
+@nb.njit(cache=True)
+def _ci_node(i, indptr, indices, kout, removed, stamp, tag):
+    """CI_2(i) = (k_out(i) - 1) * sum over nodes at out-distance exactly 2 of (k_out - 1),
+    on the graph with ``removed`` nodes deleted."""
+    if kout[i] <= 1:
+        return 0.0
+    stamp[i] = tag
+    for kk in range(indptr[i], indptr[i + 1]):
+        j = indices[kk]
+        if not removed[j]:
+            stamp[j] = tag
+    tot = 0.0
+    for kk in range(indptr[i], indptr[i + 1]):
+        j = indices[kk]
+        if removed[j]:
+            continue
+        for k2 in range(indptr[j], indptr[j + 1]):
+            l = indices[k2]
+            if not removed[l] and stamp[l] != tag:
+                stamp[l] = tag
+                tot += kout[l] - 1
+    return (kout[i] - 1) * tot
+
+
+def collective_influence(g, k):
+    """Adaptive Collective Influence (Morone & Makse 2015), ball radius l = 2 on out-arcs,
+    out-degrees in place of degrees. After each pick the node is removed; stale CI values
+    are re-evaluated lazily when they reach the top of the heap (a candidate is accepted
+    once its fresh value is at least the best stored value)."""
+    indptr, indices, _ = g.out_csr()
+    rindptr, rindices, _ = g.in_csr()
+    kout = g.out_degree().astype(float)
+    _, s2, c2 = _two_hop_sums(g.n, indptr, indices, kout, max(1, nb.get_num_threads()))
+    ci = np.maximum(kout - 1, 0) * (s2 - c2)
+    removed = np.zeros(g.n, dtype=np.bool_)
+    stamp = np.zeros(g.n, dtype=np.int64)
+    heap = [(-ci[v], -kout[v], v) for v in np.flatnonzero(ci > 0)]
+    heapq.heapify(heap)
+    out, tag = [], 0
+    while len(out) < k and heap:
+        _, nk, v = heapq.heappop(heap)
+        if removed[v]:
+            continue
+        tag += 1
+        fresh = _ci_node(v, indptr, indices, kout, removed, stamp, tag)
+        if heap and fresh < -heap[0][0]:
+            heapq.heappush(heap, (-fresh, nk, v))
+            continue
+        out.append(v)
+        removed[v] = True
+        kout[rindices[rindptr[v]:rindptr[v + 1]]] -= 1
+    if len(out) < k:  # CI exhausted (tree-like remainder): fill by out-degree
+        rest = [v for v in np.argsort(-g.out_degree(), kind="stable") if not removed[v]]
+        out += rest[: k - len(out)]
+    return np.array(out, dtype=np.int64)
+
+
 def celf(g, k, model="IC", param=None, runs=200, candidates=None, rng_seed=0, mu=0.5):
     """Lazy-greedy (CELF) seed selection with Monte Carlo spread estimates.
 
