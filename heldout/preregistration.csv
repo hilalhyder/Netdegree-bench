@@ -1,0 +1,8 @@
+net,n,m,reciprocity,p99_degree,max_degree,tail_ratio,frac_zero_in,predicted
+soc-sign-bitcoin-alpha,3683,22650,0.8546,140.35999999999967,884.0,6.3,0.1116,reciprocity ceiling
+cit-HepTh,27770,352768,0.0027,166.3199999999997,2468.0,14.84,0.0977,normal
+sx-mathoverflow,24818,227991,0.3509,307.41999999999825,2758.0,8.97,0.1166,normal
+sx-askubuntu,159316,544621,0.3266,71.0,6484.0,91.32,0.2101,normal
+sx-superuser,194085,854377,0.3273,100.0,14502.0,145.02,0.2376,degree-tail outlier
+soc-Slashdot0811,77360,828161,0.8669,316.0,5046.0,15.97,0.0835,reciprocity ceiling
+ego-Gplus,107614,13673453,0.2099,3158.0,22022.0,6.97,0.3284,normal
