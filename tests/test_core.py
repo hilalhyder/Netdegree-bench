@@ -397,6 +397,22 @@ def test_digg_fan_votes_and_story_reach():
     assert list(reach) == [2, 1, 0]
 
 
+def test_cascade_gap_helpers():
+    import run_cascade_gap as gap
+    # 0 <-> 1 mutual, 0 -> 2 one-way, 3 isolated
+    g = from_edges([0, 1, 0], [1, 0, 2], n=4)
+    rec, kout, kin = gap.node_reciprocity(g)
+    assert np.allclose(rec, [0.5, 1.0, 0.0, 0.0])
+    assert list(kout) == [2, 1, 0, 0] and list(kin) == [1, 1, 1, 0]
+    rng = np.random.default_rng(1)
+    x, y, z = rng.normal(size=(3, 500))
+    # one control reproduces evaluate.partial_spearman; controlling for a common driver removes the link
+    assert np.isclose(gap.partial_spearman(x, y, [z]), evaluate.partial_spearman(x, y, z))
+    a, b = z + 0.3 * x, z + 0.3 * y
+    assert gap.partial_spearman(a, b, [x]) > 0.5
+    assert abs(gap.partial_spearman(a, b, [x, z])) < 0.1
+
+
 def test_friedman_nemenyi_shapes():
     t = np.random.default_rng(0).random((6, 4))
     avg, stat, p, cd = evaluate.friedman_nemenyi(t)

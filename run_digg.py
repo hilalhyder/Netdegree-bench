@@ -22,6 +22,8 @@ Steps
      started before the cutoff; outcome from stories that started after it.
 
   python run_digg.py                       # downloads both KONECT archives
+  python run_digg.py --direction reverse   # sensitivity: the opposite reading of every link,
+                                           # written to <out>/digg_reversed_*.csv
 """
 from __future__ import annotations
 
@@ -165,7 +167,10 @@ def main(argv=None):
     ap.add_argument("--out", default="results")
     ap.add_argument("--cutoff", type=int, default=CUTOFF)
     ap.add_argument("--reach-sample", type=int, default=3000)
+    ap.add_argument("--direction", choices=["auto", "reverse"], default="auto",
+                    help="'reverse' uses the opposite of the direction check's decision")
     args = ap.parse_args(argv)
+    prefix = "digg" if args.direction == "auto" else "digg_reversed"
     os.makedirs(args.out, exist_ok=True)
 
     t0 = time.perf_counter()
@@ -180,8 +185,11 @@ def main(argv=None):
     # 1. direction ----------------------------------------------------------
     chk = direction_check(f, v)
     print("direction check:", {k: x for k, x in chk.items() if k != "flip"})
-    pd.DataFrame([chk]).to_csv(os.path.join(args.out, "digg_direction_check.csv"), index=False)
-    g = from_edges(f.a.to_numpy(), f.b.to_numpy(), flip=chk["flip"], n=n, labels=np.arange(n), name="digg-friends")
+    flip = chk["flip"] if args.direction == "auto" else not chk["flip"]
+    print(f"orientation: flip={flip} ({args.direction})")
+    pd.DataFrame([dict(chk, direction=args.direction, applied_flip=flip)]).to_csv(
+        os.path.join(args.out, f"{prefix}_direction_check.csv"), index=False)
+    g = from_edges(f.a.to_numpy(), f.b.to_numpy(), flip=flip, n=n, labels=np.arange(n), name="digg-friends")
     keep = np.bincount(np.r_[g.src, g.dst], minlength=n) > 0
     keep[v.u.unique()] = True
     keep[0] = False                                           # KONECT ids start at 1
@@ -191,7 +199,7 @@ def main(argv=None):
     scores, rt, info = measures.compute_all(g, include=MEASURES, verbose=True)
     print(f"  F0 = {info['F0']:.3f}")
     pd.DataFrame([dict(net=g.name, n=g.n, m=g.m, method=k, seconds=x) for k, x in rt.items()]).to_csv(
-        os.path.join(args.out, "digg_runtime.csv"), index=False)
+        os.path.join(args.out, f"{prefix}_runtime.csv"), index=False)
 
     # 3/4. outcomes and metrics ---------------------------------------------
     cr = credited(g, v)
@@ -231,13 +239,13 @@ def main(argv=None):
     print(f"story cascade reach for {nodes.size:,} users: {time.perf_counter() - t1:.1f}s")
     fans = distinct_fans(cr, n)
     pd.DataFrame({"node": nodes, "story_reach": reach, "distinct_fans": fans[nodes]}).to_csv(
-        os.path.join(args.out, "digg_reach.csv"), index=False)
+        os.path.join(args.out, f"{prefix}_reach.csv"), index=False)
     rows += score_block({k: x[nodes] for k, x in scores.items()}, reach, scores["out_degree"][nodes], "sample",
                         "story cascade reach")
 
     met = pd.DataFrame(rows)
-    met.to_csv(os.path.join(args.out, "digg_metrics.csv"), index=False)
-    pd.DataFrame(dec).to_csv(os.path.join(args.out, "digg_deciles.csv"), index=False)
+    met.to_csv(os.path.join(args.out, f"{prefix}_metrics.csv"), index=False)
+    pd.DataFrame(dec).to_csv(os.path.join(args.out, f"{prefix}_deciles.csv"), index=False)
     pd.set_option("display.width", 160)
     print(met[["split", "outcome", "measure", "spearman", "partial_spearman_ctrl_outdeg", "auc_top1pct",
                "prec_at_100"]].round(3).to_string(index=False))
