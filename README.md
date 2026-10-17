@@ -23,7 +23,7 @@ results. For the Higgs follower graph, the direction is decided from the data it
 ```bash
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python -m pytest -q tests                              # 37 checks, about 10 s after the first numba compile
+python -m pytest -q tests                              # 36 checks, about 10 s after the first numba compile
 ```
 
 ## Run
@@ -50,8 +50,6 @@ python run_higgs.py --social data/higgs-social_network.edgelist.gz \
 
 # 4. Second real-cascade dataset (RQ5): Digg 2009 votes on the friendship graph, from KONECT
 python run_digg.py --out results
-python run_digg.py --direction reverse --out results   # sensitivity: every link read the other way
-python run_cascade_gap.py --out results                 # why net-degree helps on Higgs but not on Digg
 
 # 5. Stronger seed-selection baselines (RQ4): IMM, adaptive Collective Influence, gravity
 python run_extra_baselines.py --datasets main --out results
@@ -94,8 +92,6 @@ python heldout/evaluate.py --results results_heldout             # scores each h
 | `extra_ratio.csv`, `extra_tests.csv` | Every method's k = 100 spread as a fraction of IMM and of the best method; Wilcoxon tests (Holm) of net-degree and SpringRank (α = max degree) against the three new baselines | RQ4, Table 4 |
 | `higgs_*.csv` | Direction check, metrics, deciles, precision@k curve, temporal reach | RQ5, Fig. 9 |
 | `digg_*.csv` | Direction check, metrics (distinct fans, story cascade reach, time split), deciles | RQ5, Table 5 |
-| `digg_reversed_*.csv` | The same with every Digg link read the opposite way | RQ5 (robustness) |
-| `cascade_gap_summary.csv`, `cascade_gap_strata.csv` | Higgs vs Digg: degree coupling, activity, partial correlations overall and by reciprocity / activity stratum | RQ5 |
 
 Figures are numbered in order of first citation in the manuscript and drawn to Elsevier's
 artwork specifications: final printed width (140 mm = 1.5 columns, 190 mm = full width),
@@ -150,7 +146,6 @@ run_benchmark.py       RQ2-RQ4
 run_agreement_sweep.py RQ1-RQ2 synthetic sweep
 run_higgs.py           RQ5 (Higgs)
 run_digg.py            RQ5 (Digg)
-run_cascade_gap.py     RQ5 (Higgs vs Digg)
 run_extra_baselines.py RQ4 stronger baselines
 make_figures.py        figures 1-10 and stats_summary.csv
 tests/test_core.py     correctness checks
