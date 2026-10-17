@@ -131,3 +131,8 @@ tests/test_core.py     correctness checks
 
 This takes about 15 minutes on 2 cores. The Higgs step uses a small synthetic stand-in. The
 demo checks that the pipeline runs end to end; its numbers are not results.
+
+## License and citation
+
+MIT (see `LICENSE`). To cite the software, use `CITATION.cff` (GitHub shows a "Cite this
+repository" button for it).

@@ -14,7 +14,7 @@ __pycache__/
 .DS_Store
 *.swp
 
-# Local manuscript docx copy (authoritative copy is the Claude Doc, not this repo)
+# Manuscript docx (the master copy; kept out of the repo)
 netdegree_bench/
 
 # Local scratch copies of results (full-mode rerun staging, pre-rerun backup)
