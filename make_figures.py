@@ -402,6 +402,46 @@ def fig6_and_stats(results, figs, tau):
         print("  wrote stats_summary.csv")
 
 
+SEED_FOCUS = ["spring_rank_maxdeg", "netdegree"]
+SEED_BASELINES = ["trophic", "out_degree", "degree_discount", "voterank", "pagerank_rev", "leaderrank",
+                  "kshell", "betweenness"]
+
+
+def seed_stats(results, k=100):
+    """Seed-set spread ratio to the best method for every method (seed_ratio.csv), and
+    Wilcoxon signed-rank tests of each SEED_FOCUS measure against every baseline across
+    networks, Holm-corrected within each setting (seed_tests.csv). Uses every network in
+    the results folder, so it works for the main and the held-out suite alike."""
+    sp = read(results, "spread.csv")
+    if sp is None:
+        return
+    ratio_rows, test_rows = [], []
+    for setting, d in sp[sp.k == k].groupby("setting"):
+        best = d.groupby(["net", "method"]).spread.max().unstack()
+        r = best.div(best.max(axis=1), axis=0)
+        ratio_rows.append(r.assign(setting=setting).reset_index())
+        for a in SEED_FOCUS:
+            for b in [m for m in SEED_BASELINES + SEED_FOCUS if m != a and m in r.columns]:
+                diff = (r[a] - r[b]).dropna()
+                if len(diff) < 5 or not diff.any():
+                    continue
+                test_rows.append(dict(setting=setting, k=k, measure=a, baseline=b, n_nets=len(diff),
+                                      mean_ratio=r[a].mean(), mean_ratio_baseline=r[b].mean(),
+                                      mean_diff=diff.mean(), wins=int((diff > 0).sum()),
+                                      p=float(stats.wilcoxon(diff).pvalue)))
+    if not ratio_rows:
+        return
+    pd.concat(ratio_rows).to_csv(os.path.join(results, "seed_ratio.csv"), index=False)
+    if not test_rows:
+        return print("  wrote seed_ratio.csv (too few networks for seed_tests.csv)")
+    out = pd.DataFrame(test_rows)
+    out["p_holm"] = np.nan
+    for (s, a), idx in out.groupby(["setting", "measure"]).groups.items():
+        out.loc[idx, "p_holm"] = evaluate.holm(out.loc[idx, "p"].values)
+    out.to_csv(os.path.join(results, "seed_tests.csv"), index=False)
+    print("  wrote seed_ratio.csv and seed_tests.csv")
+
+
 def fig9_higgs(results, figs):
     dec = read(results, "higgs_deciles.csv")
     cur = read(results, "higgs_precision_curve.csv")
@@ -624,6 +664,7 @@ def main():
         fig6_and_stats(args.results, args.figs, tau)
     fig7_capstone(args.results, args.figs, args.data_dir)
     fig8_spread(args.results, args.figs)
+    seed_stats(args.results)
     fig9_higgs(args.results, args.figs)
     fig10_runtime(args.results, args.figs)
 

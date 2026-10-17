@@ -113,6 +113,41 @@ def test_spring_rank_large_alpha_correlates_with_netdegree():
     assert r_large > 0.9
 
 
+def _strengths(g):
+    s_out = np.bincount(g.src, weights=g.w, minlength=g.n)
+    s_in = np.bincount(g.dst, weights=g.w, minlength=g.n)
+    return s_out, s_in
+
+
+def test_spring_rank_large_alpha_bound():
+    """Proposition 2(b): ||alpha h(alpha) - v||_inf <= 2 u_max ||v||_inf / alpha, with source
+    score -h, so -alpha h(alpha) -> weighted net-degree s_out - s_in."""
+    g, _ = synthetic.trophic_tunable(n=600, T=0.6, rng_seed=13)
+    s_out, s_in = _strengths(g)
+    v, umax = s_in - s_out, (s_in + s_out).max()
+    for alpha in [umax, 10 * umax, 100 * umax]:
+        h = -measures.spring_rank(g, alpha=alpha)
+        assert np.abs(alpha * h - v).max() <= 2 * umax * np.abs(v).max() / alpha + 1e-6
+
+
+def test_trophic_source_sits_one_below_successor_mean():
+    """Proposition 3: for s_in(i) = 0, h_i = mean_W(successor levels) - 1 (alpha = 0), and
+    h_i = s/(s + alpha) * (mean_W - 1) for SpringRank."""
+    g, _ = synthetic.trophic_tunable(n=800, T=0.7, rng_seed=14)
+    s_out, s_in = _strengths(g)
+    src = (s_in == 0) & (s_out > 0)
+    assert src.sum() > 5
+
+    def succ_mean(h):
+        return np.bincount(g.src, weights=g.w * h[g.dst], minlength=g.n)[src] / s_out[src]
+
+    h = measures.trophic_levels(g)
+    assert np.allclose(h[src], succ_mean(h) - 1, atol=1e-6)
+    alpha = 5.0
+    h = -measures.spring_rank(g, alpha=alpha)
+    assert np.allclose(h[src], s_out[src] / (s_out[src] + alpha) * (succ_mean(h) - 1), atol=1e-6)
+
+
 def test_spring_rank_p99_registered_and_no_worse_than_trophic_where_not_broken():
     """spring_rank_p99 (proofs/SUMMARY_the_regularization_fix.md's data-driven
     fix, refined from an earlier p90 version -- see the function's docstring)

@@ -1,0 +1,23 @@
+hypothesis,net,value,held,note
+H1,soc-sign-bitcoin-alpha,0.471687242100982,True,trophic ratio < 0.5
+H4,soc-sign-bitcoin-alpha,0.922153684513773,True,net-degree and SR(max) both < 0.95
+H5,soc-sign-bitcoin-alpha,0.005796724970655583,True,discordant pair fraction < 1%
+H1,cit-HepTh,0.0239243265518343,True,trophic ratio < 0.5
+H2,cit-HepTh,0.9829645762681016,True,SR(max) >= 0.95 and |SR(max) - net-degree| = 0.003 <= 0.02
+H5,cit-HepTh,0.003133275218342407,True,discordant pair fraction < 1%
+H1,sx-mathoverflow,0.1673367144461633,True,trophic ratio < 0.5
+H2,sx-mathoverflow,0.9829625958134948,True,SR(max) >= 0.95 and |SR(max) - net-degree| = 0.015 <= 0.02
+H5,sx-mathoverflow,0.014828983627816502,False,discordant pair fraction < 1%
+H1,sx-askubuntu,0.1057851413987481,True,trophic ratio < 0.5
+H2,sx-askubuntu,0.9752574601483855,True,SR(max) >= 0.95 and |SR(max) - net-degree| = 0.017 <= 0.02
+H5,sx-askubuntu,0.006115429593451194,True,discordant pair fraction < 1%
+H1,sx-superuser,0.0920089961903887,True,trophic ratio < 0.5
+H3,sx-superuser,0.22051039610777068,True,SR(max) - SR(p99) >= 0.05
+H5,sx-superuser,0.006336777250536426,True,discordant pair fraction < 1%
+H1,soc-Slashdot0811,0.1106716747443838,True,trophic ratio < 0.5
+H4,soc-Slashdot0811,0.8584854520902095,True,net-degree and SR(max) both < 0.95
+H5,soc-Slashdot0811,4.707595548497649e-05,True,discordant pair fraction < 1%
+H1,ego-Gplus,0.0752447129995319,True,trophic ratio < 0.5
+H2,ego-Gplus,0.9723946002155628,False,SR(max) >= 0.95 and |SR(max) - net-degree| = 0.028 <= 0.02
+H5,ego-Gplus,0.009256522284895185,True,discordant pair fraction < 1%
+H6,all,0.9625530268005527,True,highest mean eps_1: trophic (0.963); trophic 0.963

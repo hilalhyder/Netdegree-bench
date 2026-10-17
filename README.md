@@ -23,7 +23,7 @@ results. For the Higgs follower graph, the direction is decided from the data it
 ```bash
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python -m pytest -q tests                              # 21 checks, about 5 s after the first numba compile
+python -m pytest -q tests                              # 32 checks, about 10 s after the first numba compile
 ```
 
 ## Run
@@ -52,6 +52,20 @@ python run_higgs.py --social data/higgs-social_network.edgelist.gz \
 python make_figures.py --results results --figs figures
 ```
 
+## Pre-registered held-out test
+
+`heldout/` holds an out-of-sample check of the final α rule on seven SNAP networks that played
+no part in choosing it. `heldout/PREREGISTRATION.md` (committed before any diffusion was run)
+lists the networks, their predicted failure class and six hypotheses.
+
+```bash
+python heldout/preregister.py                                    # risk factors from degree data only
+heldoutun_heldout.cmd                                          # Windows; or run_benchmark.py per network
+python heldout/evaluate.py --results results_heldout             # scores each hypothesis
+```
+
+`heldout/hypotheses.csv` records the outcome of each prediction, network by network.
+
 `congress-Twitter` ships as JSON on SNAP. Convert it to an edge list, then use `--edgelist`.
 
 ## What each output answers
@@ -65,6 +79,7 @@ python make_figures.py --results results --figs figures
 | `groundtruth_<net>.csv` | Simulated single-node spreading ability per setting | RQ3 |
 | `tau.csv` | Kendall τ_b and imprecision ε(1%, 5%, 10%) per measure × setting | RQ3, Table 1, Figs. 4-6 |
 | `stats_summary.csv` | Friedman test, Nemenyi CD, Wilcoxon netdegree vs out-degree (Holm) | RQ3, Fig. 6 |
+| `seed_ratio.csv`, `seed_tests.csv` | Seed-set spread ratio to the best method (k = 100) for every method; Wilcoxon tests (Holm) of net-degree and SpringRank (α = max degree) against each baseline | RQ4, Table 3 |
 | `spread.csv` | Seed-set spread with bootstrap 95% CI, and redundancy, for k = 10, 25, 50, 100 | RQ4, Table 2, Figs. 7, 8 |
 | `higgs_*.csv` | Direction check, metrics, deciles, precision@k curve, temporal reach | RQ5, Fig. 9 |
 
