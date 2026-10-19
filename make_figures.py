@@ -90,7 +90,7 @@ def mk(m):
 MM = 1 / 25.4
 SINGLE_COL = 90 * MM     # 1 column
 ONE_HALF_COL = 140 * MM  # 1.5 columns
-DOUBLE_COL = 190 * MM    # full page width
+DOUBLE_COL = 165 * MM    # full text width of the manuscript page (Elsevier full width 190 mm, Springer 174 mm)
 
 
 def setup():
@@ -247,8 +247,9 @@ def fig3(results, figs):
     a1.set_ylabel("Spearman(ρ, −h)")
     panel(a1, "a")
     a1.margins(x=0.12)
-    a1.legend(loc="lower right", frameon=True, framealpha=0.9,
-              edgecolor="#e6e5e0", facecolor="white")
+    if len(syn):  # a one-entry legend says nothing when only the real networks are plotted
+        a1.legend(loc="lower right", frameon=True, framealpha=0.9,
+                  edgecolor="#e6e5e0", facecolor="white")
     src = ag[ag.source != "synthetic sweep"]
     jac = src[src.measure.str.startswith("jacobi_")].copy()
     if len(jac):
@@ -638,7 +639,10 @@ def fig10_runtime(results, figs):
         d = rt[rt.method == m].sort_values("m")
         if not len(d):
             continue
-        ax.plot(d.m, d.seconds, marker=mk(m), color=col(m), label=lab(m))
+        # thin, faint guide lines: several networks share almost the same m, so full-weight
+        # lines zigzag between them and hide the scaling trend the markers show
+        ax.plot(d.m, d.seconds, color=col(m), lw=0.6, alpha=0.45)
+        ax.plot(d.m, d.seconds, marker=mk(m), ls="none", color=col(m), label=lab(m))
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlabel("Network size, edges m")
