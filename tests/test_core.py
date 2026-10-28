@@ -27,6 +27,14 @@ def test_trophic_chain_levels():
     assert info["F0"] < 1e-10
 
 
+def test_isolated_nodes_rank_below_every_trophic_source():
+    # chain 0->1->2 plus isolated nodes 3 and 4
+    g = from_edges(np.array([0, 1]), np.array([1, 2]), n=5)
+    for sc in (measures.trophic_source_score(g), measures.compute_all(g, include=["trophic"])[0]["trophic"]):
+        assert np.argmax(sc) == 0
+        assert sc[3] < sc[:3].min() and sc[4] < sc[:3].min()
+
+
 def test_jacobi_first_iterate_is_normalized_netdegree():
     g, _ = synthetic.trophic_tunable(n=800, T=0.7, rng_seed=5)
     assert np.allclose(measures.jacobi_trophic(g, 1), measures.normalized_netdegree(g))

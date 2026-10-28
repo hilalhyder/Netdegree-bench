@@ -145,8 +145,22 @@ def trophic_incoherence(g, h, weighted=True):
     return float(np.sum(w * (h[g.dst] - h[g.src] - 1.0) ** 2) / np.sum(w))
 
 
+def set_aside_isolated(g, score):
+    """Rank isolated nodes below every other node.
+
+    Isolated nodes have no trophic level (Lemma 1 sets them aside), but
+    trophic_levels stores 0 for them, which after the per-component shift is
+    the top source score -- tied with each component's most upstream node.
+    """
+    score = np.asarray(score, dtype=float).copy()
+    iso = (g.out_degree() + g.in_degree()) == 0
+    if iso.any() and (~iso).any():
+        score[iso] = score[~iso].min() - 1.0
+    return score
+
+
 def trophic_source_score(g, weighted=True):
-    return -trophic_levels(g, weighted=weighted)
+    return set_aside_isolated(g, -trophic_levels(g, weighted=weighted))
 
 
 def spring_rank(g, alpha=1.0, weighted=True, rtol=1e-10, maxiter=None):
@@ -465,7 +479,7 @@ def compute_all(g, *, include=None, exclude=(), betweenness_samples=500, big=50_
         t0 = time.perf_counter()
         if name == "trophic":
             h, tinfo = trophic_levels(g, return_info=True)
-            val = -h
+            val = set_aside_isolated(g, -h)
             info.update(tinfo)
             info["levels"] = h
         else:

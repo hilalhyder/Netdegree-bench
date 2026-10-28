@@ -24,3 +24,7 @@ results_full/
 results_quick_backup/
 
 extra_baselines.log
+
+# Pre-fix result snapshots (isolated-node trophic fix, 2026-10-28)
+results_backup_*/
+results_heldout_backup_*/
