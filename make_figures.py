@@ -36,7 +36,7 @@ STYLE = {
     "pagerank_rev":            ("#e87ba4", "v", "PageRank (reversed)"),
     "leaderrank":              ("#008300", "P", "LeaderRank"),
     "voterank":                ("#4a3aa7", "X", "VoteRank"),
-    "degree_discount":         ("#e34948", "*", "DegreeDiscount"),
+    "degree_discount":         ("#e34948", "*", "DDIC"),
     "celf":                    ("#0b0b0b", "h", "CELF (reference)"),
     "spring_rank_p99":         ("#c9b3f2", "p", "SpringRank (α = p99 degree)"),
     "spring_rank_tailadaptive": ("#8f5fe0", "H", "SpringRank (α = √(p99·max))"),
