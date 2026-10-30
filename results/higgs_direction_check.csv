@@ -1,0 +1,2 @@
+rt_pairs,share_raw_retweeter_to_author,share_raw_author_to_retweeter,decision,flip
+328132,0.5913717650213939,0.13108444162715005,flip (file means 'A follows B'),True

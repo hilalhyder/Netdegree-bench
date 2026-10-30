@@ -1,0 +1,2 @@
+max_links_from_a,max_links_to_b,submitter_median_links_from,submitter_median_links_to,one_way_links,early_votes,covotes_source_after_target,covotes_target_after_source,decision,flip
+995,12038,0.0,54.0,1364599,100,63180,62567,flip (a -> b means 'a watches b'),True

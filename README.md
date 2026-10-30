@@ -23,7 +23,7 @@ results. For the Higgs follower graph, the direction is decided from the data it
 ```bash
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python -m pytest -q tests                              # 36 checks, about 10 s after the first numba compile
+python -m pytest -q tests                              # 37 checks, about 10 s after the first numba compile
 ```
 
 ## Run
@@ -58,6 +58,11 @@ python run_extra_baselines.py --datasets heldout --out results_heldout
 # 6. Figures and statistics
 python make_figures.py --results results --figs figures
 ```
+
+`results/` and `results_heldout/` already hold the summary outputs of these runs (Kendall tau,
+spreads, ground truth, statistical tests, runtimes), so step 6 and `heldout/evaluate.py` reproduce
+every table and figure without rerunning the diffusions. The per-node `measures_<net>.csv` files
+(1.35 GB) are not in the repository; steps 2-5 regenerate them.
 
 ## Pre-registered held-out test
 

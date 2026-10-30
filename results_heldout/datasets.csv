@@ -1,0 +1,8 @@
+net,n,m,mean_degree,reciprocity,p_c,F0,trophic_residual,flip,arc_meaning,verify,role
+soc-sign-bitcoin-alpha,3683,22650,6.149877816997013,0.854569536423841,0.0203263706165935,0.8845868122241838,8.476405446249727e-11,True,i rated j (trust score -10..10); same format as bitcoin-otc,False,"held-out: weighted trust, second Bitcoin marketplace"
+cit-HepTh,27770,352768,12.703204897371265,0.0027383436139332366,0.04721137222771971,0.2942638010301126,8.716757431077599e-11,True,paper i cites j,False,held-out: knowledge flow
+sx-mathoverflow,24818,227991,9.186517849947618,0.3509349053252102,0.006254845467531256,0.6887068727857611,9.715001055873354e-11,False,"i answered/commented on j's post (SNAP: 'user u answered user v's question, or commented on v's question/answer'); the reply reaches j, so flip=False",False,held-out: temporal Q&A
+soc-Slashdot0811,77360,828161,10.705286970010341,0.8669352939826918,0.007521470213148452,0.9365434947557152,9.770087015279298e-11,True,i tagged j as friend/foe; same convention as soc-Slashdot0922,False,"held-out: social tagging, earlier snapshot"
+sx-askubuntu,159316,544621,3.4184953174822366,0.32657572880957586,0.00564543468005033,0.5890669311282253,8.604744068720908e-11,False,i answered/commented on j's post (same semantics as sx-mathoverflow),False,held-out: temporal Q&A
+sx-superuser,194085,854377,4.40207640982044,0.32727238678007486,0.004728604788318314,0.608468892723047,9.41629861739996e-11,False,i answered/commented on j's post (same semantics as sx-mathoverflow),False,held-out: temporal Q&A
+ego-Gplus,107614,13673453,127.06016875127771,0.20992034711349064,0.0019678126571391185,0.4083155104767544,6.264672800780423e-11,True,i has j in a circle (i follows j); same convention as ego-Twitter,False,held-out: follower network
