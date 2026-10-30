@@ -60,9 +60,10 @@ python make_figures.py --results results --figs figures
 ```
 
 `results/` and `results_heldout/` already hold the summary outputs of these runs (Kendall tau,
-spreads, ground truth, statistical tests, runtimes), so step 6 and `heldout/evaluate.py` reproduce
-every table and figure without rerunning the diffusions. The per-node `measures_<net>.csv` files
-(1.35 GB) are not in the repository; steps 2-5 regenerate them.
+spreads, ground truth, statistical tests, runtimes), so step 6 reproduces every table and every
+figure except Figure 2 without rerunning the diffusions. Figure 2 and hypothesis H5 of the held-out
+test read the per-node `measures_<net>.csv` files (1.35 GB), which are not in the repository;
+steps 2-5 regenerate them.
 
 ## Pre-registered held-out test
 
