@@ -1,9 +1,27 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "netdegree-bench: local and global flow-imbalance measures for influential spreaders in directed networks"
+version: 1.0.0
 authors:
-  - family-names: Hyder
-    given-names: Hilal
+  - family-names: Khanday
+    given-names: Hilal Ahmad
+    affiliation: "Department of Computer Sciences, South Campus, University of Kashmir, India"
+  - family-names: Ganai
+    given-names: Aaquib Hussain
+    affiliation: "School of Computing, Mohan Babu University, Tirupati, Andhra Pradesh, India"
+  - family-names: Nasti
+    given-names: Samiah Jan
+    affiliation: "Department of Computer Sciences, South Campus, University of Kashmir, India"
+  - family-names: Mohd
+    given-names: Mudasir
+    affiliation: "Department of Computer Sciences, South Campus, University of Kashmir, India"
 license: MIT
 repository-code: "https://github.com/hilalhyder/Netdegree-bench"
-date-released: 2026-10-17
+keywords:
+  - directed networks
+  - influential spreaders
+  - trophic level
+  - SpringRank
+  - net-degree
+  - influence maximization
+date-released: 2026-10-30
